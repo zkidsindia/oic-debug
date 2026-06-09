@@ -1,0 +1,2183 @@
+{
+  "Specification": {
+    "dataPipeline": {
+      "pipelineNodes": [
+        {
+          "metadata": {
+            "description": "Start of data pipeline",
+            "name": "Start"
+          },
+          "outcomes": {
+            "success": "1778682099951"
+          },
+          "code": "START",
+          "id": "start",
+          "inputs": [],
+          "type": "START"
+        },
+        {
+          "metadata": {
+            "description": "End of data pipeline",
+            "name": "End"
+          },
+          "outcomes": {},
+          "code": "END",
+          "id": "end",
+          "inputs": [],
+          "type": "END"
+        },
+        {
+          "metadata": {
+            "name": "Get User Session",
+            "toolCode": "ORA_USER_SESSION_TOOL"
+          },
+          "outcomes": {
+            "success": "1778682291200"
+          },
+          "code": "GET_USER_SESSION",
+          "id": "1778682099951",
+          "inputs": [],
+          "type": "TOOL"
+        },
+        {
+          "metadata": {
+            "name": "Verify App Action",
+            "returnType": "string",
+            "sourceCode": "const appAction = $context.$app.$OraMessageHint;\n\nreturn  (appAction == \"InitDisplay\" || appAction == \"InitActions\" || appAction == \"Summary\" || appAction == \"Query\" ||  appAction == \"InitCommunications\" || appAction == \"FillParameters\") ? \"BUSINESS_OBJECT_DATA\":\"NO_DATA\";"
+          },
+          "outcomes": {
+            "success": "1778682417509"
+          },
+          "code": "VERIFY_APP_ACTION",
+          "id": "1778682291200",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "IF DATA NEEDED"
+          },
+          "outcomes": {
+            "true": "1778682632046",
+            "false": "1778682812319"
+          },
+          "code": "IF_DATA_NEEDED",
+          "convergenceTargetId": "end",
+          "id": "1778682417509",
+          "inputs": [
+            {
+              "id": "1778682417510_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.VERIFY_APP_ACTION.$output.result === \"BUSINESS_OBJECT_DATA\"}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "App Actions"
+          },
+          "outcomes": {
+            "Summary": "add_Summary_1778682535137",
+            "InitDisplay": "add_InitDisplay_1778682535137",
+            "InitActions": "add_InitActions_1778682535137",
+            "InitCommunications": "add_InitCommunications_1778682535137",
+            "FillParameters": "add_FillParameters_1778682535137"
+          },
+          "code": "APP_ACTIONS",
+          "convergenceTargetId": "end",
+          "id": "1778682535137",
+          "inputs": [
+            {
+              "id": "1778682535137_1",
+              "name": "caseExpression",
+              "type": "string",
+              "value": "{{$context.$app.$OraMessageHint}}"
+            }
+          ],
+          "type": "SWITCH"
+        },
+        {
+          "metadata": {
+            "name": "Merge Negotiation Data",
+            "returnType": "object",
+            "sourceCode": "var closedRaw = $context.$nodes.GET_SUPPLIER_NEGOTIATIONS_DATA.$output.items || [];\nvar awardByDateRaw = $context.$nodes.GET_AWARD_BY_DATE_NEGOTIATIONS.$output.items || [];\n\nvar seenKeys = \"\";\nvar mergedList = [];\n\nfor (var i = 0; i < closedRaw.length; i++) {\n  var item = closedRaw[i];\n  var id = item.AuctionHeaderId;\n  var marker = '|' + id + '|';\n  var alreadySeen = seenKeys.indexOf(marker) >= 0;\n\n  if (alreadySeen) continue;\n\n  var closeMs = Date.parse(item.CloseDate);\n  var nowMs = Date.parse(item.CurrentDateTime);\n  var diffInDays = (nowMs - closeMs) / 86400000;\n  seenKeys = seenKeys + marker;\n  mergedList[mergedList.length] = {\n    AuctionHeaderId: id,\n    NegotiationStatus: item.NegotiationStatusCode,\n    DifferenceInDays: diffInDays,\n    ProcurementBU: item.ProcurementBU,\n    SupplierResponses: item.SupplierResponses,\n    CloseDate: item.CloseDate,\n    AwardByDate: item.AwardByDate,\n    SuppliersCount: item.SuppliersCount,\n    RestrictToInvitedSuppliersFlag: item.RestrictToInvitedSuppliersFlag,\n    NegotiationTitle: item.NegotiationType + ' ' + item.Negotiation + ' - ' + (item.NegotiationTitle || ' '),\n    BuyerName: item.Buyer || ' '\n  };\n}\n\nfor (var j = 0; j < awardByDateRaw.length; j++) {\n  var item2 = awardByDateRaw[j];\n  var id2 = item2.AuctionHeaderId;\n  var marker2 = '|' + id2 + '|';\n  var alreadySeen2 = seenKeys.indexOf(marker2) >= 0;\n\n  if (alreadySeen2) continue;\n  if (item2.AwardByDate == null) continue;\n\n  var awardMs = Date.parse(item2.AwardByDate);\n  var nowMs2 = Date.parse(item2.CurrentDateTime);\n  var diffInDays2 = (awardMs - nowMs2) / 86400000;\n\n  if (diffInDays2 >= 0) continue;\n\n  seenKeys = seenKeys + marker2;\n  mergedList[mergedList.length] = {\n    AuctionHeaderId: id2,\n    NegotiationStatus: item2.NegotiationStatusCode + '_AWARD_BY_DATE',\n    DifferenceInDays: diffInDays2,\n    ProcurementBU: item2.ProcurementBU,\n    SupplierResponses: item2.SupplierResponses,\n    CloseDate: item2.CloseDate,\n    AwardByDate: item2.AwardByDate,\n    SuppliersCount: item2.SuppliersCount,\n    RestrictToInvitedSuppliersFlag: item2.RestrictToInvitedSuppliersFlag,\n    NegotiationTitle: item2.NegotiationType + ' ' + item2.Negotiation + ' - ' + (item2.NegotiationTitle || ' '),\n    BuyerName: item2.Buyer || ' '\n  };\n}\n\nreturn { NegotiationsList: mergedList, NegotiationsCount: mergedList.length };"
+          },
+          "outcomes": {
+            "success": "1778682535137"
+          },
+          "code": "MERGE_NEGOTIATION_DATA",
+          "id": "1778682601519",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Run in Parallel"
+          },
+          "outcomes": {
+            "0": "1778682647048",
+            "1": "1778682708866",
+            "2": "add_1778682632046_2"
+          },
+          "code": "PARALLEL_1778682632047",
+          "convergenceTargetId": "1778682601519",
+          "id": "1778682632046",
+          "inputs": [],
+          "type": "PARALLEL"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "ORA_PRC_SOURCING_SUPPLIERNEGOTIATIONSAGENTIC",
+            "functionName": "getall_supplierNegotiations_pending_award",
+            "name": "Get Supplier Negotiations Data"
+          },
+          "outcomes": {
+            "success": "1778682601519"
+          },
+          "code": "GET_SUPPLIER_NEGOTIATIONS_DATA",
+          "id": "1778682647048",
+          "inputs": [
+            {
+              "id": "1778682664190_1",
+              "name": "Limit",
+              "type": "string",
+              "value": "5"
+            }
+          ],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"items\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"AuctionHeaderId\": { \"type\": \"number\" },\n          \"Negotiation\":     { \"type\": \"number\" },\n          \"NegotiationType\": { \"type\": \"string\" },\n          \"NegotiationTitle\": { \"type\": \"string\" },\n          \"NegotiationStatus\": { \"type\": \"string\" },\n          \"NegotiationStatusCode\": { \"type\": \"string\" },\n          \"OpenDate\": { \"type\": \"string\" },\n          \"CloseDate\": { \"type\": \"string\" },\n          \"AwardByDate\": { \"type\": \"string\" },\n          \"CurrentDateTime\": { \"type\": \"string\" },\n          \"SuppliersCount\": { \"type\": \"number\" },\n          \"SupplierResponses\": { \"type\": \"number\" },\n          \"AwardStatus\": { \"type\": \"string\" },\n          \"NumberOfLines\": { \"type\": \"number\" },\n          \"ProcurementBUId\": { \"type\": \"number\" },\n          \"ProcurementBU\": { \"type\": \"string\" },\n          \"BuyerId\": { \"type\": \"number\" },\n          \"Buyer\": { \"type\": \"string\" }\n        },\n        \"required\": [\n          \"AuctionHeaderId\",\n          \"Negotiation\",\n          \"NegotiationType\",\n          \"NegotiationTitle\",\n          \"NegotiationStatus\",\n          \"NegotiationStatusCode\",\n          \"OpenDate\",\n          \"CloseDate\",\n          \"AwardByDate\",\n          \"CurrentDateTime\",\n          \"SuppliersCount\",\n          \"SupplierResponses\",\n          \"AwardStatus\",\n          \"NumberOfLines\",\n          \"ProcurementBUId\",\n          \"ProcurementBU\",\n          \"BuyerId\",\n          \"Buyer\"\n        ]\n      }\n    }\n  },\n  \"required\": [\"items\"]\n}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "ORA_PRC_SOURCING_SUPPLIERNEGOTIATIONSAGENTIC",
+            "functionName": "getall_supplierNegotiations_award_by_date",
+            "name": "Get Award By Date Negotiations"
+          },
+          "outcomes": {
+            "success": "1778682601519"
+          },
+          "code": "GET_AWARD_BY_DATE_NEGOTIATIONS",
+          "id": "1778682708866",
+          "inputs": [
+            {
+              "id": "1778682726249_1",
+              "name": "Limit",
+              "type": "string",
+              "value": "5"
+            }
+          ],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"items\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"AuctionHeaderId\": { \"type\": \"number\" },\n          \"Negotiation\":     { \"type\": \"number\" },\n          \"NegotiationType\": { \"type\": \"string\" },\n          \"NegotiationTitle\": { \"type\": \"string\" },\n          \"NegotiationStatus\": { \"type\": \"string\" },\n          \"NegotiationStatusCode\": { \"type\": \"string\" },\n          \"OpenDate\": { \"type\": \"string\" },\n          \"CloseDate\": { \"type\": \"string\" },\n          \"AwardByDate\": { \"type\": \"string\" },\n          \"CurrentDateTime\": { \"type\": \"string\" },\n          \"SuppliersCount\": { \"type\": \"number\" },\n          \"SupplierResponses\": { \"type\": \"number\" },\n          \"AwardStatus\": { \"type\": \"string\" },\n          \"NumberOfLines\": { \"type\": \"number\" },\n          \"ProcurementBUId\": { \"type\": \"number\" },\n          \"ProcurementBU\": { \"type\": \"string\" },\n          \"BuyerId\": { \"type\": \"number\" },\n          \"Buyer\": { \"type\": \"string\" }\n        },\n        \"required\": [\n          \"AuctionHeaderId\",\n          \"Negotiation\",\n          \"NegotiationType\",\n          \"NegotiationTitle\",\n          \"NegotiationStatus\",\n          \"NegotiationStatusCode\",\n          \"OpenDate\",\n          \"CloseDate\",\n          \"AwardByDate\",\n          \"CurrentDateTime\",\n          \"SuppliersCount\",\n          \"SupplierResponses\",\n          \"AwardStatus\",\n          \"NumberOfLines\",\n          \"ProcurementBUId\",\n          \"ProcurementBU\",\n          \"BuyerId\",\n          \"Buyer\"\n        ]\n      }\n    }\n  },\n  \"required\": [\"items\"]\n}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "description": "Add node for branch 2",
+            "name": "Add 2"
+          },
+          "outcomes": {
+            "success": "1778682601519"
+          },
+          "id": "add_1778682632046_2",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "name": "Action Switch"
+          },
+          "outcomes": {
+            "InvokeAction": "1778682989355",
+            "Other": "add_Other_1778682812319"
+          },
+          "code": "ACTION_SWITCH",
+          "convergenceTargetId": "end",
+          "id": "1778682812319",
+          "inputs": [
+            {
+              "id": "1778682812320_1",
+              "name": "caseExpression",
+              "type": "string",
+              "value": "{{$context.$app.$OraMessageHint}}"
+            }
+          ],
+          "type": "SWITCH"
+        },
+        {
+          "metadata": {
+            "description": "Add node for Other case branch",
+            "name": "Add (Other Case)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_Other_1778682812319",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "name": "IF AWARD RECOMMENDED"
+          },
+          "outcomes": {
+            "true": "1778683132140",
+            "false": "add_false_1778682895753"
+          },
+          "code": "IF_AWARD_RECOMMENDED",
+          "convergenceTargetId": "end",
+          "id": "1778682895753",
+          "inputs": [
+            {
+              "id": "1778682895754_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.GENERATE_AWARD_RECOMMENDATION.$output.result.Status == \"SUCCESS\"}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "description": "Add node for false branch",
+            "name": "Add (False Branch)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_false_1778682895753",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "ORA_PRC_SOURCING_NEGOTIATIONAWARDSAGENTIC",
+            "functionName": "GenerateRecommendedAward",
+            "name": "Generate Award Recommendation"
+          },
+          "outcomes": {
+            "success": "1778682895753"
+          },
+          "code": "GENERATE_AWARD_RECOMMENDATION",
+          "id": "1778682924038",
+          "inputs": [
+            {
+              "id": "1778682940561_1",
+              "name": "supplierNegotiationAwards_Id",
+              "type": "string",
+              "value": "{{$context.$nodes.GET_SUGGESTED_ACTION.$output.result.AuctionHeaderId}}"
+            }
+          ],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Generate Recommended Award\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"Status\": {\n          \"type\": \"string\"\n        },\n        \"RecommendedAwardId\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"Status\",\n        \"RecommendedAwardId\"\n      ]\n    }\n  },\n  \"required\": [\n    \"result\"\n  ]\n}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Get Suggested Action",
+            "returnType": "object",
+            "sourceCode": "//const suggestedAction = $context.$app.$OraAction;\n\nconst suggestedAction = $context.$system.$inputMessage;\nconst [action, auctionHeaderId] = suggestedAction .split(\"-\", 2);\n\nreturn {Action: action, AuctionHeaderId: auctionHeaderId};"
+          },
+          "outcomes": {
+            "success": "1778682924038"
+          },
+          "code": "GET_SUGGESTED_ACTION",
+          "id": "1778682989355",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "If Apply Award"
+          },
+          "outcomes": {
+            "true": "1778683241656",
+            "false": "1778683324548"
+          },
+          "code": "IF_APPLY_AWARD",
+          "convergenceTargetId": "end",
+          "id": "1778683067546",
+          "inputs": [
+            {
+              "id": "1778683067547_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.APPLY_AWARD_RECOMMENDATION.$output.result.Status === \"SUCCESS\"}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "ORA_PRC_SOURCING_NEGOTIATIONAWARDSAGENTIC",
+            "functionName": "ApplyRecommendedAward",
+            "name": "Apply Award Recommendation"
+          },
+          "outcomes": {
+            "success": "1778683067546"
+          },
+          "code": "APPLY_AWARD_RECOMMENDATION",
+          "id": "1778683132140",
+          "inputs": [
+            {
+              "id": "1778683149799_1",
+              "name": "supplierNegotiationAwards_Id",
+              "type": "string",
+              "value": "{{$context.$nodes.GET_SUGGESTED_ACTION.$output.result.AuctionHeaderId}}"
+            },
+            {
+              "id": "1778683149799_2",
+              "name": "RecommendedAwardId",
+              "type": "string",
+              "value": "{{$context.$nodes.GENERATE_AWARD_RECOMMENDATION.$output.result.RecommendedAwardId}}"
+            }
+          ],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Apply Award Recommendation\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"Status\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"Status\"\n      ]\n    }\n  },\n  \"required\": [\n    \"result\"\n  ]\n}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "ORA_PRC_SOURCING_NEGOTIATIONAWARDSAGENTIC",
+            "functionName": "getall_supplierNegotiationAwards_recommendedAward",
+            "name": "Get Award Recommendation"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "GET_AWARD_RECOMMENDATION",
+          "id": "1778683241656",
+          "inputs": [
+            {
+              "id": "1778683266281_1",
+              "name": "supplierNegotiationAwards_Id",
+              "type": "string",
+              "value": "{{$context.$nodes.GET_SUGGESTED_ACTION.$output.result.AuctionHeaderId}}"
+            },
+            {
+              "id": "1778683266282_2",
+              "name": "RecommendedAward_Id",
+              "type": "string",
+              "value": "{{$context.$nodes.GENERATE_AWARD_RECOMMENDATION.$output.result.RecommendedAwardId}}"
+            }
+          ],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Generated schema for Root\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"items\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"AuctionHeaderId\": {\n            \"type\": \"number\"\n          },\n          \"RecommendedAwardId\": {\n            \"type\": \"number\"\n          },\n          \"Supplier\": {\n            \"type\": \"string\"\n          },\n          \"SupplierId\": {\n            \"type\": \"number\"\n          },\n          \"SupplierContactId\": {\n            \"type\": \"number\"\n          },\n          \"CurrencyCode\": {\n            \"type\": \"string\"\n          },\n          \"SupplierSite\": {\n            \"type\": \"string\"\n          },\n          \"SupplierSiteId\": {\n            \"type\": \"number\"\n          },\n          \"ShortlistFlag\": {\n            \"type\": \"boolean\"\n          },\n          \"ResponseAmount\": {\n            \"type\": \"number\"\n          },\n          \"CompositeScore\": {\n            \"type\": \"number\"\n          },\n          \"TransformedRank\": {\n            \"type\": \"number\"\n          },\n          \"CompositeRank\": {\n            \"type\": \"number\"\n          },\n          \"VendorId\": {\n            \"type\": \"number\"\n          },\n          \"ResponseNumber\": {\n            \"type\": \"number\"\n          },\n          \"RecommendedAwardAmount\": {\n            \"type\": \"number\"\n          },\n          \"PotentialSavingsAmount\": {\n            \"type\": \"number\"\n          },\n          \"NumberOfAwardedLines\": {\n            \"type\": \"number\"\n          },\n          \"SupplierContact\": {\n            \"type\": \"string\"\n          },\n          \"PotentialSavingsPercentage\": {\n            \"type\": \"number\"\n          },\n          \"Score\": {},\n          \"lines\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"items\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"type\": \"object\",\n                  \"properties\": {\n                    \"Item\": {\n                      \"type\": \"string\"\n                    },\n                    \"UnitOfMeasure\": {\n                      \"type\": \"string\"\n                    },\n                    \"AuctionHeaderId\": {\n                      \"type\": \"number\"\n                    },\n                    \"LineId\": {\n                      \"type\": \"number\"\n                    },\n                    \"Description\": {\n                      \"type\": \"string\"\n                    },\n                    \"AwardQuantity\": {\n                      \"type\": \"number\"\n                    },\n                    \"RecommendedAwardId\": {\n                      \"type\": \"number\"\n                    },\n                    \"ResponseNumber\": {\n                      \"type\": \"number\"\n                    },\n                    \"ResponsePrice\": {\n                      \"type\": \"number\"\n                    },\n                    \"Rank\": {\n                      \"type\": \"number\"\n                    },\n                    \"ResponseQuantity\": {\n                      \"type\": \"number\"\n                    },\n                    \"CurrentPrice\": {\n                      \"type\": \"number\"\n                    },\n                    \"SavingsAmount\": {\n                      \"type\": \"number\"\n                    },\n                    \"AwardAmount\": {\n                      \"type\": \"number\"\n                    },\n                    \"SavingsPercentage\": {\n                      \"type\": \"number\"\n                    },\n                    \"Line\": {\n                      \"type\": \"string\"\n                    },\n                    \"ItemRevision\": {\n                      \"type\": \"string\"\n                    },\n                    \"AgreementQuantity\": {\n                       \"type\": \"number\"\n                    },\n                    \"TargetPrice\": {\n                       \"type\": \"number\"\n                    }\n                  },\n                  \"required\": [\n                    \"Item\",\n                    \"AuctionHeaderId\",\n                    \"LineId\",\n                    \"Description\",\n                    \"AwardQuantity\",\n                    \"RecommendedAwardId\",\n                    \"ResponseNumber\",\n                    \"ResponsePrice\",\n                    \"Rank\",\n                    \"ResponseQuantity\",\n                    \"CurrentPrice\",\n                    \"SavingsAmount\",\n                    \"AwardAmount\",\n                    \"SavingsPercentage\",\n                    \"Line\",\n                    \"ItemRevision\",\n                    \"AgreementQuantity\",\n                    \"TargetPrice\"\n                  ]\n                }\n              }\n            },\n            \"required\": [\n              \"items\"\n            ]\n          }\n        },\n        \"required\": [\n          \"AuctionHeaderId\",\n          \"RecommendedAwardId\",\n          \"Supplier\",\n          \"SupplierId\",\n          \"SupplierContactId\",\n          \"CurrencyCode\",\n          \"SupplierSiteId\",\n          \"ShortlistFlag\",\n          \"ResponseAmount\",\n          \"CompositeScore\",\n          \"TransformedRank\",\n          \"CompositeRank\",\n          \"VendorId\",\n          \"ResponseNumber\",\n          \"RecommendedAwardAmount\",\n          \"PotentialSavingsAmount\",\n          \"NumberOfAwardedLines\",\n          \"SupplierContact\",\n          \"PotentialSavingsPercentage\",\n          \"Score\",\n          \"lines\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"items\"\n  ]\n}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Generate Apply Recommendation Error",
+            "returnType": "string",
+            "sourceCode": "return \"Apply award recommendation couldn't be executed\";"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "GENERATE_APPLY_RECOMMENDATION_ERROR",
+          "id": "1778683324548",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "description": "Add node for Summary case branch",
+            "name": "Add (Summary Case)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_Summary_1778682535137",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "description": "Add node for InitDisplay case branch",
+            "name": "Add (InitDisplay Case)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_InitDisplay_1778682535137",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "description": "Add node for InitActions case branch",
+            "name": "Add (InitActions Case)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_InitActions_1778682535137",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "description": "Add node for InitCommunications case branch",
+            "name": "Add (InitCommunications Case)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_InitCommunications_1778682535137",
+          "inputs": [],
+          "type": "ADD"
+        },
+        {
+          "metadata": {
+            "description": "Add node for FillParameters case branch",
+            "name": "Add (FillParameters Case)"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "id": "add_FillParameters_1778682535137",
+          "inputs": [],
+          "type": "ADD"
+        }
+      ],
+      "rootNode": "start",
+      "variables": [
+        {
+          "id": "1778682067475",
+          "name": "AppAction",
+          "scope": "JOB",
+          "type": "string"
+        }
+      ],
+      "errorHandlers": [
+        {
+          "type": "EMAIL",
+          "inputs": [
+            {
+              "name": "toList",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "name": "ccList",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "name": "subject",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "name": "body",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        }
+      ]
+    },
+    "jsonSchemaName": "Workflow.spec",
+    "jsonSchemaVersion": "1",
+    "inputs": [],
+    "outputSpecification": " ",
+    "agentsValueMappings": [],
+    "modelConfiguration": null,
+    "humanApprovalFlag": false,
+    "waitFlag": false,
+    "triggers": [
+      {
+        "type": "REST",
+        "inputs": [
+          {
+            "id": "1778682016329",
+            "name": "OraMessageHint",
+            "scope": "JOB",
+            "type": "string"
+          }
+        ]
+      }
+    ],
+    "deletedTriggerTypes": [],
+    "costSavings": 0,
+    "timeSavings": 10,
+    "chatExpTPFileUploadEnabledFlag": false,
+    "chatExpThirdPartyDetails": []
+  },
+  "dependencies": {
+    "boFunctionNodes": [
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Get supplier negotiation sourcing messages history by AuctionHeaderId",
+              "id": 51,
+              "isNew": false,
+              "name": "get_supplierNegotiation_messages",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation unique identifier",
+                  "id": 55,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?q=AuctionHeaderId={supplierNegotiations_Id}&expand=threads,threads.messages&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by negotiation status code.",
+              "id": 29,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_by_status_code",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Code for current negotiation status",
+                  "id": 24,
+                  "isToken": true,
+                  "name": "NegotiationStatusCode"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy=CloseDate:asc&q=NegotiationStatusCode='{NegotiationStatusCode}'&limit=20&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get closed negotiations pending award prioritizing award by date.",
+              "id": 30,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_award_by_date",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Limit data",
+                  "id": 26,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationStatus,NegotiationType,OpenDate,CloseDate,AwardByDate,CurrentDateTime,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,ProcurementBUId,ProcurementBU,BuyerId,Buyer,RestrictToInvitedSuppliersFlag&q=(NegotiationStatusCode='CLOSED' and AwardStatus='NO' and SupplierResponses > 0 AND CurrentOutcomeCode IS NOT NULL)&orderBy=AwardByDate:asc&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by multiple statuses for the workload agentic panel.",
+              "id": 31,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_for_workload_multi_status",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Attribute to order by",
+                  "id": 28,
+                  "isToken": true,
+                  "name": "OrderBy"
+                },
+                {
+                  "dataType": "string",
+                  "description": "First status code to filter out negotiations",
+                  "id": 29,
+                  "isToken": true,
+                  "name": "FirstNegotiationStatusCode"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Second status code to filter out negotiations",
+                  "id": 30,
+                  "isToken": true,
+                  "name": "SecondNegotiationStatusCode"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Attribute that must be available",
+                  "id": 31,
+                  "isToken": true,
+                  "name": "AttributeNotNull"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Data limit",
+                  "id": 32,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,CreationDate,NegApprovalSubmitDate,AuctionStatusCode,LastUpdateDate,CurrentDateTime,AwardApprovalSubmitDate,AwardDate,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy={OrderBy}&q=(NegotiationStatusCode='{FirstNegotiationStatusCode}' or NegotiationStatusCode='{SecondNegotiationStatusCode}') and {AttributeNotNull} IS NOT NULL&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by status for the workload agentic panel.",
+              "id": 32,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_for_workload",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Attribute to order by",
+                  "id": 28,
+                  "isToken": true,
+                  "name": "OrderBy"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Current negotiation status code",
+                  "id": 29,
+                  "isToken": true,
+                  "name": "NegotiationStatusCode"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Attribute that must be available",
+                  "id": 30,
+                  "isToken": true,
+                  "name": "AttributeNotNull"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Data limit",
+                  "id": 31,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,CreationDate,NegApprovalSubmitDate,AuctionStatusCode,LastUpdateDate,CurrentDateTime,AwardApprovalSubmitDate,AwardDate,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy={OrderBy}&q=(NegotiationStatusCode='{NegotiationStatusCode}' and {AttributeNotNull} IS NOT NULL)&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation details, including sections and requirements.",
+              "id": 33,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_sections_and_requirements",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 49,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?&expand=sections,sections.requirements&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "{payload}",
+              "description": "Update schedules for a supplier negotiation",
+              "id": 34,
+              "isNew": false,
+              "name": "UpdateNegotiationSchedule",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Request payload",
+                  "id": 54,
+                  "isToken": true,
+                  "name": "payload"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Supplier Negotiation Unique Identifier",
+                  "id": 53,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{payload}",
+              "description": "Validate and Publish Negotiation",
+              "id": 35,
+              "isNew": false,
+              "name": "ValidateAndPublishNegotiation",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Request payload",
+                  "id": 59,
+                  "isToken": true,
+                  "name": "payload"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Supplier Negotiation Unique Identifier",
+                  "id": 58,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}/action/ValidateAndPublishNegotiation",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations that were approved after the open date (Approved but not published).",
+              "id": 36,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_approved_not_published",
+              "operationType": "GET",
+              "parameterDefinitions": [],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ApprovalAmount,NegApprovalDate,ProcurementBUId,ProcurementBU,BuyerId,Buyer&q=NegApprovalStatus='APPROVED_NOT_PUBLISHED'&limit=5&orderBy=NegApprovalDate:asc&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get the history of supplier activities for a specific negotiation.",
+              "id": 37,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_suppliers_activities",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 51,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}/child/supplierActivities?finder=AllSupplierActivitiesFinder",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by status.",
+              "id": 38,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_by_status",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Current status for the negotiation.",
+                  "id": 83,
+                  "isToken": true,
+                  "name": "NegotiationStatus"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy=CloseDate:asc&q=NegotiationStatus='{NegotiationStatus}'&limit=25&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation with collaboration team members, this Collaboration Team Members resource manages details about collaboration team members for each supplier negotiation and the tasks these members perform. For example, John Brown from engineering reviews item specifications, or Richard Smith from legal reviews terms and conditions.",
+              "id": 39,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_collaborationTeam",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 46,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=collaborationTeamMembers&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation with the list of invited suppliers, this resource manages details about suppliers that submit a response for a negotiation.",
+              "id": 40,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_suppliers",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 41,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=suppliers&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation with lines, this resource manages details about products and services that the application sources in a supplier negotiation. For example, catering services or laptop computers.",
+              "id": 41,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_lines",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 38,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=lines&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get the AuctionHeaderId using the negotiation number.",
+              "id": 42,
+              "isNew": false,
+              "name": "get_supplierNegotiation_AuctionHeaderId",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Number of the negotiation.",
+                  "id": 23,
+                  "isToken": true,
+                  "name": "NegotiationNumber"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,Negotiation,NegotiationType,NegotiationTitle,NegotiationStatus,ProcurementBUId,ProcurementBU,BuyerId,Buyer&q=Negotiation='{NegotiationNumber}'&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations.",
+              "id": 43,
+              "isNew": false,
+              "name": "get_supplierNegotiations",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 63,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{payload}",
+              "description": "Time management actions to extend, pause, resume, cancel, or change the close date for a negotiation.",
+              "id": 44,
+              "isNew": false,
+              "name": "NegotiationTimeManagementActions",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Request payload",
+                  "id": 30,
+                  "isToken": true,
+                  "name": "payload"
+                },
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 29,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}/action/NegotiationTimeManagementActions",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get active negotiations.",
+              "id": 45,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_active",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Current negotiation status",
+                  "id": 22,
+                  "isToken": true,
+                  "name": "NegotiationStatus"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer,CurrentDateTime&orderBy=CloseDate:asc&q=NegotiationStatus='{NegotiationStatus}'&limit=15&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get closed negotiations pending award.",
+              "id": 46,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_pending_award",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Limit data",
+                  "id": 23,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationStatus,NegotiationType,OpenDate,CloseDate,AwardByDate,CurrentDateTime,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,ProcurementBUId,ProcurementBU,BuyerId,Buyer,RestrictToInvitedSuppliersFlag&q=(NegotiationStatusCode='CLOSED' and AwardStatus='NO' and SupplierResponses > 0 AND CurrentOutcomeCode IS NOT NULL)&orderBy=CloseDate:asc&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{\n  \"parameters\": {\n    \"AuctionHeaderId\": {AuctionHeaderId},\n    \"BroadcastType\": \"ALL_PARTICIPANTS\",\n    \"MessageSubject\": \"{MessageSubject}\",\n    \"MessageText\": \"{MessageText}\",\n    \"MessageType\": \"EXTERNAL\",\n    \"RecipientList\": \"[]\"\n  }\n}",
+              "description": "Send reminders or messages to all participating suppliers.",
+              "id": 47,
+              "isNew": false,
+              "name": "SendMessageToAllSuppliers",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 106,
+                  "isToken": true,
+                  "name": "AuctionHeaderId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Subject",
+                  "id": 107,
+                  "isToken": true,
+                  "name": "MessageSubject"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Message Content",
+                  "id": 108,
+                  "isToken": true,
+                  "name": "MessageText"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/action/SendMessage",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get a list of negotiations, excluding specific statuses.",
+              "id": 48,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_for_status",
+              "operationType": "GET",
+              "parameterDefinitions": [],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&limit=100&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiations with award information.",
+              "id": 49,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_awarded",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Title of the negotiation",
+                  "id": 113,
+                  "isToken": true,
+                  "name": "NegotiationTitle"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Current negotiation status",
+                  "id": 114,
+                  "isToken": true,
+                  "name": "NegotiationStatus"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?expand=lines&fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,lines,ProcurementBUId,ProcurementBU,BuyerId,Buyer&q=NegotiationTitle='{NegotiationTitle}' and NegotiationStatus='{NegotiationStatus}'&orderBy=CloseDate:asc",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation details, including line details.",
+              "id": 50,
+              "isNew": false,
+              "name": "get_supplierNegotiation_detail_with_lines",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 117,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=lines&fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,lines,ProcurementBUId,ProcurementBU,BuyerId,Buyer&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "ORA_PRC_SOURCING_SUPPLIERNEGOTIATIONSAGENTIC",
+        "Family": "PRC",
+        "Product": "SOURCING",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/fscmRestApi/resources/11.13.18.05/",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": true,
+        "ObjectDisplayName": "Supplier Negotiations Agentic App",
+        "Name": "Supplier Negotiations Agentic App",
+        "Description": "The SupplierNegotiations REST resource in Oracle Fusion Cloud Procurement provides RESTful API endpoints to create, retrieve, update, and manage negotiation events such as RFQs and auctions. It allows programmatic access to negotiation details, lines, requirements, suppliers, and attachments, supporting integration with external systems and automation of procurement processes.",
+        "CreatedBy": "SEED_DATA_FROM_APPLICATION",
+        "CreationDate": "2026-03-25T20:38:45.154+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Get supplier negotiation sourcing messages history by AuctionHeaderId",
+              "id": 51,
+              "isNew": false,
+              "name": "get_supplierNegotiation_messages",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation unique identifier",
+                  "id": 55,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?q=AuctionHeaderId={supplierNegotiations_Id}&expand=threads,threads.messages&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by negotiation status code.",
+              "id": 29,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_by_status_code",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Code for current negotiation status",
+                  "id": 24,
+                  "isToken": true,
+                  "name": "NegotiationStatusCode"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy=CloseDate:asc&q=NegotiationStatusCode='{NegotiationStatusCode}'&limit=20&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get closed negotiations pending award prioritizing award by date.",
+              "id": 30,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_award_by_date",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Limit data",
+                  "id": 26,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationStatus,NegotiationType,OpenDate,CloseDate,AwardByDate,CurrentDateTime,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,ProcurementBUId,ProcurementBU,BuyerId,Buyer,RestrictToInvitedSuppliersFlag&q=(NegotiationStatusCode='CLOSED' and AwardStatus='NO' and SupplierResponses > 0 AND CurrentOutcomeCode IS NOT NULL)&orderBy=AwardByDate:asc&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by multiple statuses for the workload agentic panel.",
+              "id": 31,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_for_workload_multi_status",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Attribute to order by",
+                  "id": 28,
+                  "isToken": true,
+                  "name": "OrderBy"
+                },
+                {
+                  "dataType": "string",
+                  "description": "First status code to filter out negotiations",
+                  "id": 29,
+                  "isToken": true,
+                  "name": "FirstNegotiationStatusCode"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Second status code to filter out negotiations",
+                  "id": 30,
+                  "isToken": true,
+                  "name": "SecondNegotiationStatusCode"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Attribute that must be available",
+                  "id": 31,
+                  "isToken": true,
+                  "name": "AttributeNotNull"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Data limit",
+                  "id": 32,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,CreationDate,NegApprovalSubmitDate,AuctionStatusCode,LastUpdateDate,CurrentDateTime,AwardApprovalSubmitDate,AwardDate,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy={OrderBy}&q=(NegotiationStatusCode='{FirstNegotiationStatusCode}' or NegotiationStatusCode='{SecondNegotiationStatusCode}') and {AttributeNotNull} IS NOT NULL&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by status for the workload agentic panel.",
+              "id": 32,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_for_workload",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Attribute to order by",
+                  "id": 28,
+                  "isToken": true,
+                  "name": "OrderBy"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Current negotiation status code",
+                  "id": 29,
+                  "isToken": true,
+                  "name": "NegotiationStatusCode"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Attribute that must be available",
+                  "id": 30,
+                  "isToken": true,
+                  "name": "AttributeNotNull"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Data limit",
+                  "id": 31,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,CreationDate,NegApprovalSubmitDate,AuctionStatusCode,LastUpdateDate,CurrentDateTime,AwardApprovalSubmitDate,AwardDate,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy={OrderBy}&q=(NegotiationStatusCode='{NegotiationStatusCode}' and {AttributeNotNull} IS NOT NULL)&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation details, including sections and requirements.",
+              "id": 33,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_sections_and_requirements",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 49,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?&expand=sections,sections.requirements&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "{payload}",
+              "description": "Update schedules for a supplier negotiation",
+              "id": 34,
+              "isNew": false,
+              "name": "UpdateNegotiationSchedule",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Request payload",
+                  "id": 54,
+                  "isToken": true,
+                  "name": "payload"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Supplier Negotiation Unique Identifier",
+                  "id": 53,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{payload}",
+              "description": "Validate and Publish Negotiation",
+              "id": 35,
+              "isNew": false,
+              "name": "ValidateAndPublishNegotiation",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Request payload",
+                  "id": 59,
+                  "isToken": true,
+                  "name": "payload"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Supplier Negotiation Unique Identifier",
+                  "id": 58,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}/action/ValidateAndPublishNegotiation",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations that were approved after the open date (Approved but not published).",
+              "id": 36,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_approved_not_published",
+              "operationType": "GET",
+              "parameterDefinitions": [],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ApprovalAmount,NegApprovalDate,ProcurementBUId,ProcurementBU,BuyerId,Buyer&q=NegApprovalStatus='APPROVED_NOT_PUBLISHED'&limit=5&orderBy=NegApprovalDate:asc&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get the history of supplier activities for a specific negotiation.",
+              "id": 37,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_suppliers_activities",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 51,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}/child/supplierActivities?finder=AllSupplierActivitiesFinder",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations filtered by status.",
+              "id": 38,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_by_status",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Current status for the negotiation.",
+                  "id": 83,
+                  "isToken": true,
+                  "name": "NegotiationStatus"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&orderBy=CloseDate:asc&q=NegotiationStatus='{NegotiationStatus}'&limit=25&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation with collaboration team members, this Collaboration Team Members resource manages details about collaboration team members for each supplier negotiation and the tasks these members perform. For example, John Brown from engineering reviews item specifications, or Richard Smith from legal reviews terms and conditions.",
+              "id": 39,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_collaborationTeam",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 46,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=collaborationTeamMembers&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation with the list of invited suppliers, this resource manages details about suppliers that submit a response for a negotiation.",
+              "id": 40,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_suppliers",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 41,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=suppliers&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation with lines, this resource manages details about products and services that the application sources in a supplier negotiation. For example, catering services or laptop computers.",
+              "id": 41,
+              "isNew": false,
+              "name": "get_supplierNegotiation_with_lines",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 38,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=lines&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get the AuctionHeaderId using the negotiation number.",
+              "id": 42,
+              "isNew": false,
+              "name": "get_supplierNegotiation_AuctionHeaderId",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Number of the negotiation.",
+                  "id": 23,
+                  "isToken": true,
+                  "name": "NegotiationNumber"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,Negotiation,NegotiationType,NegotiationTitle,NegotiationStatus,ProcurementBUId,ProcurementBU,BuyerId,Buyer&q=Negotiation='{NegotiationNumber}'&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get all negotiations.",
+              "id": 43,
+              "isNew": false,
+              "name": "get_supplierNegotiations",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 63,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{payload}",
+              "description": "Time management actions to extend, pause, resume, cancel, or change the close date for a negotiation.",
+              "id": 44,
+              "isNew": false,
+              "name": "NegotiationTimeManagementActions",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Request payload",
+                  "id": 30,
+                  "isToken": true,
+                  "name": "payload"
+                },
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 29,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}/action/NegotiationTimeManagementActions",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get active negotiations.",
+              "id": 45,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_active",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Current negotiation status",
+                  "id": 22,
+                  "isToken": true,
+                  "name": "NegotiationStatus"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,TimeRemaining,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer,CurrentDateTime&orderBy=CloseDate:asc&q=NegotiationStatus='{NegotiationStatus}'&limit=15&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get closed negotiations pending award.",
+              "id": 46,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_pending_award",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Limit data",
+                  "id": 23,
+                  "isToken": true,
+                  "name": "Limit"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationStatus,NegotiationType,OpenDate,CloseDate,AwardByDate,CurrentDateTime,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,ProcurementBUId,ProcurementBU,BuyerId,Buyer,RestrictToInvitedSuppliersFlag&q=(NegotiationStatusCode='CLOSED' and AwardStatus='NO' and SupplierResponses > 0 AND CurrentOutcomeCode IS NOT NULL)&orderBy=CloseDate:asc&limit={Limit}&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{\n  \"parameters\": {\n    \"AuctionHeaderId\": {AuctionHeaderId},\n    \"BroadcastType\": \"ALL_PARTICIPANTS\",\n    \"MessageSubject\": \"{MessageSubject}\",\n    \"MessageText\": \"{MessageText}\",\n    \"MessageType\": \"EXTERNAL\",\n    \"RecipientList\": \"[]\"\n  }\n}",
+              "description": "Send reminders or messages to all participating suppliers.",
+              "id": 47,
+              "isNew": false,
+              "name": "SendMessageToAllSuppliers",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 106,
+                  "isToken": true,
+                  "name": "AuctionHeaderId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Subject",
+                  "id": 107,
+                  "isToken": true,
+                  "name": "MessageSubject"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Message Content",
+                  "id": 108,
+                  "isToken": true,
+                  "name": "MessageText"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/action/SendMessage",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get a list of negotiations, excluding specific statuses.",
+              "id": 48,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_for_status",
+              "operationType": "GET",
+              "parameterDefinitions": [],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatus,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,ProcurementBUId,ProcurementBU,BuyerId,Buyer&limit=100&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiations with award information.",
+              "id": 49,
+              "isNew": false,
+              "name": "getall_supplierNegotiations_awarded",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Title of the negotiation",
+                  "id": 113,
+                  "isToken": true,
+                  "name": "NegotiationTitle"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Current negotiation status",
+                  "id": 114,
+                  "isToken": true,
+                  "name": "NegotiationStatus"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations?expand=lines&fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,lines,ProcurementBUId,ProcurementBU,BuyerId,Buyer&q=NegotiationTitle='{NegotiationTitle}' and NegotiationStatus='{NegotiationStatus}'&orderBy=CloseDate:asc",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get negotiation details, including line details.",
+              "id": 50,
+              "isNew": false,
+              "name": "get_supplierNegotiation_detail_with_lines",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item.",
+                  "id": 117,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiations/{supplierNegotiations_Id}?expand=lines&fields=AuctionHeaderId,NegotiationTitle,NegotiationType,Negotiation,NegotiationStatusCode,NegotiationType,OpenDate,CloseDate,SuppliersCount,SupplierResponses,AwardStatus,NumberOfLines,lines,ProcurementBUId,ProcurementBU,BuyerId,Buyer&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "ORA_PRC_SOURCING_SUPPLIERNEGOTIATIONSAGENTIC",
+        "Family": "PRC",
+        "Product": "SOURCING",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/fscmRestApi/resources/11.13.18.05/",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": true,
+        "ObjectDisplayName": "Supplier Negotiations Agentic App",
+        "Name": "Supplier Negotiations Agentic App",
+        "Description": "The SupplierNegotiations REST resource in Oracle Fusion Cloud Procurement provides RESTful API endpoints to create, retrieve, update, and manage negotiation events such as RFQs and auctions. It allows programmatic access to negotiation details, lines, requirements, suppliers, and attachments, supporting integration with external systems and automation of procurement processes.",
+        "CreatedBy": "SEED_DATA_FROM_APPLICATION",
+        "CreationDate": "2026-03-25T20:38:45.154+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Get all supplier responses.",
+              "id": 126,
+              "isNew": false,
+              "name": "getall_supplierNegotiationAwards-responses",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation unique identifier",
+                  "id": 132,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiations_Id}/child/responses?fields=AuctionHeaderId,ResponseNumber,SupplierId,Supplier,SupplierContactId,SupplierContact,SupplierSiteId,SupplierSite,ResponseAmount,TotalLines,PartialResponseInformation&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get recommended award details.",
+              "id": 127,
+              "isNew": false,
+              "name": "getall_supplierNegotiationAwards_recommendedAward",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation header unique identifier",
+                  "id": 137,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Recommended award unique identifier",
+                  "id": 138,
+                  "isToken": true,
+                  "name": "RecommendedAward_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/child/recommendedResponses?q=RecommendedAwardId={RecommendedAward_Id}&expand=lines",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{\n    \"parameters\": {\n        \"RecommendedAwardId\": {RecommendedAwardId}\n    }\n}",
+              "description": "Apply award recommendation.",
+              "id": 128,
+              "isNew": false,
+              "name": "ApplyRecommendedAward",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item. For example: products?q=InventoryItemId=<value1>",
+                  "id": 144,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Identifier for suggested award recommendation",
+                  "id": 145,
+                  "isToken": true,
+                  "name": "RecommendedAwardId"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/action/ApplyRecommendedAward",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{}",
+              "description": "Generate recommended award.",
+              "id": 129,
+              "isNew": false,
+              "name": "GenerateRecommendedAward",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item. For example: products?q=InventoryItemId=<value1>",
+                  "id": 149,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/action/GenerateRecommendedAward",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "ORA_PRC_SOURCING_NEGOTIATIONAWARDSAGENTIC",
+        "Family": "PRC",
+        "Product": "SOURCING",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": true,
+        "ObjectDisplayName": "Negotiation Awards Agentic App",
+        "Name": "Negotiation Awards Agentic App",
+        "Description": "Provide all award data for supplier negotiations.",
+        "CreatedBy": "SEED_DATA_FROM_APPLICATION",
+        "CreationDate": "2026-03-25T20:38:45+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Get all supplier responses.",
+              "id": 126,
+              "isNew": false,
+              "name": "getall_supplierNegotiationAwards-responses",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation unique identifier",
+                  "id": 132,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiations_Id}/child/responses?fields=AuctionHeaderId,ResponseNumber,SupplierId,Supplier,SupplierContactId,SupplierContact,SupplierSiteId,SupplierSite,ResponseAmount,TotalLines,PartialResponseInformation&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get recommended award details.",
+              "id": 127,
+              "isNew": false,
+              "name": "getall_supplierNegotiationAwards_recommendedAward",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation header unique identifier",
+                  "id": 137,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Recommended award unique identifier",
+                  "id": 138,
+                  "isToken": true,
+                  "name": "RecommendedAward_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/child/recommendedResponses?q=RecommendedAwardId={RecommendedAward_Id}&expand=lines",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{\n    \"parameters\": {\n        \"RecommendedAwardId\": {RecommendedAwardId}\n    }\n}",
+              "description": "Apply award recommendation.",
+              "id": 128,
+              "isNew": false,
+              "name": "ApplyRecommendedAward",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item. For example: products?q=InventoryItemId=<value1>",
+                  "id": 144,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Identifier for suggested award recommendation",
+                  "id": 145,
+                  "isToken": true,
+                  "name": "RecommendedAwardId"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/action/ApplyRecommendedAward",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{}",
+              "description": "Generate recommended award.",
+              "id": 129,
+              "isNew": false,
+              "name": "GenerateRecommendedAward",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item. For example: products?q=InventoryItemId=<value1>",
+                  "id": 149,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/action/GenerateRecommendedAward",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "ORA_PRC_SOURCING_NEGOTIATIONAWARDSAGENTIC",
+        "Family": "PRC",
+        "Product": "SOURCING",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": true,
+        "ObjectDisplayName": "Negotiation Awards Agentic App",
+        "Name": "Negotiation Awards Agentic App",
+        "Description": "Provide all award data for supplier negotiations.",
+        "CreatedBy": "SEED_DATA_FROM_APPLICATION",
+        "CreationDate": "2026-03-25T20:38:45+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Get all supplier responses.",
+              "id": 126,
+              "isNew": false,
+              "name": "getall_supplierNegotiationAwards-responses",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation unique identifier",
+                  "id": 132,
+                  "isToken": true,
+                  "name": "supplierNegotiations_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiations_Id}/child/responses?fields=AuctionHeaderId,ResponseNumber,SupplierId,Supplier,SupplierContactId,SupplierContact,SupplierSiteId,SupplierSite,ResponseAmount,TotalLines,PartialResponseInformation&onlyData=true",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "bodyTemplate": "",
+              "description": "Get recommended award details.",
+              "id": 127,
+              "isNew": false,
+              "name": "getall_supplierNegotiationAwards_recommendedAward",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Negotiation header unique identifier",
+                  "id": 137,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Recommended award unique identifier",
+                  "id": 138,
+                  "isToken": true,
+                  "name": "RecommendedAward_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/child/recommendedResponses?q=RecommendedAwardId={RecommendedAward_Id}&expand=lines",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{\n    \"parameters\": {\n        \"RecommendedAwardId\": {RecommendedAwardId}\n    }\n}",
+              "description": "Apply award recommendation.",
+              "id": 128,
+              "isNew": false,
+              "name": "ApplyRecommendedAward",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item. For example: products?q=InventoryItemId=<value1>",
+                  "id": 144,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Identifier for suggested award recommendation",
+                  "id": 145,
+                  "isToken": true,
+                  "name": "RecommendedAwardId"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/action/ApplyRecommendedAward",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.action+json"
+              },
+              "bodyTemplate": "{}",
+              "description": "Generate recommended award.",
+              "id": 129,
+              "isNew": false,
+              "name": "GenerateRecommendedAward",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "The value of this parameter could be a hash of the key that is used to uniquely identify the resource item. The client should not generate the hash key value. Instead, the client should query on the collection resource with a filter to navigate to a specific resource item. For example: products?q=InventoryItemId=<value1>",
+                  "id": 149,
+                  "isToken": true,
+                  "name": "supplierNegotiationAwards_Id"
+                }
+              ],
+              "resourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards/{supplierNegotiationAwards_Id}/action/GenerateRecommendedAward",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "ORA_PRC_SOURCING_NEGOTIATIONAWARDSAGENTIC",
+        "Family": "PRC",
+        "Product": "SOURCING",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/fscmRestApi/resources/11.13.18.05/supplierNegotiationAwards",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": true,
+        "ObjectDisplayName": "Negotiation Awards Agentic App",
+        "Name": "Negotiation Awards Agentic App",
+        "Description": "Provide all award data for supplier negotiations.",
+        "CreatedBy": "SEED_DATA_FROM_APPLICATION",
+        "CreationDate": "2026-03-25T20:38:45+00:00"
+      }
+    ],
+    "agentNodes": [],
+    "workflowNodes": [],
+    "documentProcessorNodes": [],
+    "ragDocumentToolNodes": [],
+    "toolNodes": [
+      {
+        "ToolCode": "ORA_USER_SESSION_TOOL",
+        "Type": "USER_SESSION",
+        "Name": "GetUserSession",
+        "Description": "Tool that fetches the PersonNumber of the logged in user.",
+        "Family": "COMMON",
+        "Product": "OTHER",
+        "SeededFlag": true,
+        "HiddenFlag": false,
+        "ModuleId": "074F58CB6E686D21E0634CA56C64F55F",
+        "Namespace": "COMMON.OTHER",
+        "Version": 1,
+        "UserInputRequiredFlag": false,
+        "Specification": null,
+        "UserInputMsg": null
+      }
+    ],
+    "externalRestNodes": []
+  },
+  "WorkflowCode": "XXXX_NEGOTIATIONS_AWARD_ADVISOR",
+  "Name": "XXXX Negotiations Award Advisor",
+  "Description": "Identifies negotiations pending award that need attention such as those with past award dates, prolonged closed status, or rejected awards, and recommends applying award decisions as a priority action.",
+  "Family": "PRC",
+  "Product": "SOURCING",
+  "HiddenFlag": false,
+  "AiAppsCompatibleFlag": false,
+  "UseCaseId": "NA",
+  "SourceWorkflowId": null,
+  "AccessModifier": "public",
+  "StartQuestionOne": null,
+  "StartQuestionTwo": null,
+  "StartQuestionThree": null,
+  "FollowUpPromptEnabledFlag": false,
+  "FollowUpPrompt": "Based on the following conversion: $param.system_context.chat_history generate $param.system_context.number_of_follow_up_questions\nfollow up questions only while strictly adhering to the JSON Schema format mentioned below. Remove the ```json markdown from the output.\nHere is the JSON Schema format the output should adhere to:\n[{\"question\": \"<put first question generated here>\"}, {\"question\": \"<put second question generated here>\"}, {\"question\": \"<put third question generated here>\"}",
+  "Architecture": "data_pipeline",
+  "MaximumInteractions": null,
+  "StartAgentId": null,
+  "agents": [],
+  "agentMappings": [],
+  "partnerMetadata": {
+    "Description": "",
+    "Name": ""
+  }
+}
