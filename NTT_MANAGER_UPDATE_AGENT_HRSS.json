@@ -1,0 +1,2421 @@
+{
+  "Specification": {
+    "dataPipeline": {
+      "pipelineNodes": [
+        {
+          "metadata": {
+            "description": "Start of data pipeline",
+            "name": "Start"
+          },
+          "outcomes": {
+            "success": "909000001"
+          },
+          "code": "START",
+          "id": "start",
+          "inputs": [],
+          "type": "START"
+        },
+        {
+          "metadata": {
+            "description": "End of data pipeline",
+            "name": "End"
+          },
+          "outcomes": {},
+          "code": "END",
+          "id": "end",
+          "inputs": [],
+          "type": "END"
+        },
+        {
+          "metadata": {
+            "name": "Parse Manager Update Request"
+          },
+          "outcomes": {
+            "success": "9000000000002"
+          },
+          "code": "PARSE_MANAGER_UPDATE_REQUEST",
+          "id": "9000000000001",
+          "inputs": [
+            {
+              "id": "9000000000001_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "You are an HRSS Manager Update workflow intake agent.\n\nReference date: {{$context.$system.$currentDate}}\nOriginal user message: {{$context.$system.$inputMessage}}\nConversation so far (use to accumulate details already provided and to detect confirmation): {{$context.$system.$chatHistory}}\nPreviously extracted request, if any: {{$context.$variables.vManagerUpdateRequest}}\n\nSupported workflow goals only:\n1. Update Line Manager. Business rule: when Line Manager is requested, update LINE_MANAGER. Also update REWARD_MANAGER to the same new manager and same effective date only if an existing REWARD_MANAGER record is already present. Do not create a missing Reward Manager record.\n2. Update Project Manager. Business rule: update PROJECT_MANAGER only.\n\nDo not support standalone Reward Manager update in this first version. If the user asks only to update Reward Manager, ask whether they want to perform a Line Manager update. In the Line Manager path, Reward Manager is updated only when an existing Reward Manager row is already present; missing Reward Manager rows are skipped.\n\nRequired inputs:\n- workerPersonNumber: the employee/worker identifier. Accept a worker person number or exact worker display name.\n- newManagerPersonNumber: the proposed manager identifier. Accept a manager person number or exact manager display name.\n- updateType: LINE_MANAGER or PROJECT_MANAGER\n- effectiveDate: YYYY-MM-DD. Do not default this unless the user explicitly says today/tomorrow or provides a date.\n\nOptional input:\n- reasonCode: action reason code, only if the user provides it explicitly.\n\nExtraction and patching rules:\n- CONFIRM ACTIONS: if the original user message is a JSON payload whose action value is confirmWrite, the user has clicked the Confirm button on the change summary that was already shown. Treat this as an explicit confirmation: set isConfirmed to true, intent to manager_update, and readyToProceed to true. Take workerPersonNumber, newManagerPersonNumber, updateType, and effectiveDate DIRECTLY from the payload fields of the same names when present; fall back to the values already captured in the conversation for anything missing. Never ask a follow-up question for a confirmWrite payload.\n- FORM SUBMISSIONS: if the original user message contains an oraFormSubmit tag followed by a JSON array of id/value pairs, this is a submitted Reporting Line Change form. Read the values directly: the worker field is workerPersonNumber, the newManager field is newManagerPersonNumber, the updateType field maps Line Manager to LINE_MANAGER and Project Manager to PROJECT_MANAGER, and the effectiveDate field is effectiveDate. A numeric value is a person number; a non-numeric value is an exact display name. Ignore the formContext field unless other fields are empty, in which case use its workerNumber or workerName. A submitted form is a fresh request, not a confirmation: set intent to manager_update and isConfirmed to false, and set readyToProceed true when worker, new manager, update type, and effective date are all present.\n- If feedback is present, patch the previous extracted request instead of starting over. Preserve values that the feedback does not change.\n- Interpret \"line\", \"line manager\", \"manager\" as LINE_MANAGER unless the user clearly says project/project manager.\n- Interpret \"project\", \"project manager\" as PROJECT_MANAGER.\n- Effective date must be normalized to YYYY-MM-DD using the reference date.\n- Never invent person numbers or names. If the user gives a name, keep the exact name as provided in the corresponding field. If the user gives a person number, keep the person number as provided.\n- If the request is not about manager updates, set intent to \"unclear\".\n- If the request is a standalone reward manager update, set intent to \"unsupported\" and ask whether to run the Line Manager + Reward Manager path instead.\n\nOutput JSON only:\n{\n  \"intent\": \"manager_update|unclear|unsupported\",\n  \"updateType\": \"LINE_MANAGER|PROJECT_MANAGER|null\",\n  \"workerPersonNumber\": \"string|null\",\n  \"newManagerPersonNumber\": \"string|null\",\n  \"effectiveDate\": \"YYYY-MM-DD|null\",\n  \"reasonCode\": \"string|null\",\n  \"readyToProceed\": true|false,\n  \"missingFields\": [\"field names\"],\n  \"crossQuestion\": \"string|null\",\n  \"summary\": \"short plain-English summary|null\"\n}\n\ncrossQuestion rules:\n- If intent is unclear, ask one concise question limited to the two supported choices: Line Manager update or Project Manager update.\n- If intent is unsupported because of standalone Reward Manager, explain that Reward Manager is updated together with Line Manager and ask if they want to proceed with the Line Manager path.\n- If required information is missing, ask for only the missing fields and include the fields already captured.\n- If readyToProceed is true, crossQuestion must be null.\n\nCONFIRMATION DETECTION (critical):\n- Also output a boolean field isConfirmed.\n- Use the full conversation above. Set isConfirmed to true ONLY IF a previous assistant turn already presented a confirmation summary of the exact change AND the user's latest message is an affirmative approval (for example: confirm, yes, proceed, go ahead, do it, approved).\n- Otherwise set isConfirmed to false. Never treat the initial request as confirmation. Do not write any change until isConfirmed is true."
+            }
+          ],
+          "outputSpecification": "{\"$schema\": \"http://json-schema.org/draft-04/schema#\", \"type\": \"object\", \"additionalProperties\": false, \"properties\": {\"intent\": {\"type\": \"string\"}, \"updateType\": {\"type\": [\"string\", \"null\"]}, \"workerPersonNumber\": {\"type\": [\"string\", \"null\"]}, \"newManagerPersonNumber\": {\"type\": [\"string\", \"null\"]}, \"effectiveDate\": {\"type\": [\"string\", \"null\"]}, \"reasonCode\": {\"type\": [\"string\", \"null\"]}, \"readyToProceed\": {\"type\": \"boolean\"}, \"missingFields\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"crossQuestion\": {\"type\": [\"string\", \"null\"]}, \"summary\": {\"type\": [\"string\", \"null\"]}, \"isConfirmed\": {\"type\": \"boolean\"}}, \"required\": [\"intent\", \"updateType\", \"workerPersonNumber\", \"newManagerPersonNumber\", \"effectiveDate\", \"reasonCode\", \"readyToProceed\", \"missingFields\", \"crossQuestion\", \"summary\"]}",
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "name": "Set Manager Update Request"
+          },
+          "outcomes": {
+            "success": "9000000000003"
+          },
+          "code": "SET_MANAGER_UPDATE_REQUEST",
+          "id": "9000000000002",
+          "inputs": [
+            {
+              "id": "9000000000002_1",
+              "name": "vManagerUpdateRequest",
+              "scope": "JOB",
+              "type": "object",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output}}"
+            }
+          ],
+          "type": "SET_FIELDS"
+        },
+        {
+          "metadata": {
+            "name": "If Request Unclear Or Unsupported"
+          },
+          "outcomes": {
+            "true": "9000000000004",
+            "false": "9000000000005"
+          },
+          "code": "IF_REQUEST_UNCLEAR_OR_UNSUPPORTED",
+          "convergenceTargetId": "end",
+          "id": "9000000000003",
+          "inputs": [
+            {
+              "id": "9000000000003_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.intent !== 'manager_update'}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Return Unclear Or Unsupported"
+          },
+          "outcomes": {},
+          "code": "RETURN_UNCLEAR_OR_UNSUPPORTED",
+          "convergenceTargetId": "end",
+          "id": "9000000000004",
+          "inputs": [
+            {
+              "id": "9000000000004_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.crossQuestion}}"
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "If Required Info Missing"
+          },
+          "outcomes": {
+            "true": "950000016",
+            "false": "9000000000110"
+          },
+          "code": "IF_REQUIRED_INFO_MISSING",
+          "convergenceTargetId": "end",
+          "id": "9000000000005",
+          "inputs": [
+            {
+              "id": "9000000000005_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.readyToProceed === false}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Return Request Cancelled"
+          },
+          "outcomes": {},
+          "code": "RETURN_REQUEST_CANCELLED",
+          "convergenceTargetId": "end",
+          "id": "9000000000007",
+          "inputs": [
+            {
+              "id": "9000000000007_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "Manager update request cancelled. No changes were made."
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "Build Worker Lookup Queries",
+            "returnType": "object",
+            "sourceCode": "var reqNode = $context.$nodes.PARSE_MANAGER_UPDATE_REQUEST;\nvar req = new Object();\nif (reqNode && reqNode.$output) {\n  req = reqNode.$output;\n}\n\nvar asString = (v) => {\n  if (v === null || v === undefined) return '';\n  return String(v).trim();\n};\n\nvar escapeQueryLiteral = (v) => {\n  return asString(v).split(\"'\").join(\"''\");\n};\n\nvar hasAnyWhitespace = (s) => {\n  var text = asString(s);\n  for (var i = 0; i < text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c === 9 || c === 10 || c === 11 || c === 12 || c === 13 || c === 32) return true;\n  }\n  return false;\n};\n\nvar hasAnyDigit = (s) => {\n  var text = asString(s);\n  for (var i = 0; i < text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c >= 48 && c <= 57) return true;\n  }\n  return false;\n};\n\nvar makeLookupResult = (query, mode, input) => {\n  var result = new Object();\n  result.query = query;\n  result.mode = mode;\n  result.input = input;\n  return result;\n};\n\nvar buildWorkerQuery = (inputValue) => {\n  var raw = asString(inputValue);\n  if (!raw) {\n    return makeLookupResult(null, 'MISSING', raw);\n  }\n  var escaped = escapeQueryLiteral(raw);\n  var personNumberLike = (!hasAnyWhitespace(raw) && hasAnyDigit(raw));\n  if (personNumberLike) {\n    return makeLookupResult(\"PersonNumber='\" + escaped + \"'\", 'PERSON_NUMBER', raw);\n  }\n  return makeLookupResult(\"UPPER(DisplayName)=UPPER('\" + escaped + \"')\", 'DISPLAY_NAME', raw);\n};\n\nvar target = buildWorkerQuery(req.workerPersonNumber);\nvar manager = buildWorkerQuery(req.newManagerPersonNumber);\nvar errors = [];\nif (!target.query) errors.push('Worker name or number is required.');\nif (!manager.query) errors.push('Proposed manager name or number is required.');\n\nvar output = new Object();\noutput.hasError = errors.length > 0;\noutput.errors = errors;\noutput.targetWorkerQuery = target.query;\noutput.targetLookupMode = target.mode;\noutput.targetLookupText = target.input;\noutput.newManagerQuery = manager.query;\noutput.newManagerLookupMode = manager.mode;\noutput.newManagerLookupText = manager.input;\nreturn output;"
+          },
+          "outcomes": {
+            "success": "9000000000008"
+          },
+          "code": "BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3",
+          "id": "9000000000110",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+            "functionName": "get_worker_manager_update_details",
+            "name": "Get Target Worker"
+          },
+          "outcomes": {
+            "success": "9000000000009"
+          },
+          "code": "GET_TARGET_WORKER",
+          "id": "9000000000008",
+          "inputs": [
+            {
+              "id": "9000000000008_1",
+              "name": "workerQuery",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3.$output.result.targetWorkerQuery}}"
+            },
+            {
+              "id": "9000000000008_2",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$system.$currentDate}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+            "functionName": "get_worker_manager_update_details",
+            "name": "Get New Manager"
+          },
+          "outcomes": {
+            "success": "9000000000010"
+          },
+          "code": "GET_NEW_MANAGER",
+          "id": "9000000000009",
+          "inputs": [
+            {
+              "id": "9000000000009_1",
+              "name": "workerQuery",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3.$output.result.newManagerQuery}}"
+            },
+            {
+              "id": "9000000000009_2",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$system.$currentDate}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Build Manager Update Context",
+            "returnType": "object",
+            "sourceCode": "const req = $context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output || {};\nconst targetResponse = $context.$nodes.GET_TARGET_WORKER.$output || {};\nconst newMgrResponse = $context.$nodes.GET_NEW_MANAGER.$output || {};\nconst lookupDate = $context.$system.$currentDate;\nconst updateDate = req.effectiveDate;\nconst lookupCtx = ($context.$nodes.BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3 && $context.$nodes.BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3.$output && $context.$nodes.BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3.$output.result) ? $context.$nodes.BUILD_WORKER_LOOKUP_QUERIES_SAFE_V3.$output.result : {};\n\nconst itemsOf = (response) => {\n  if (!response) return [];\n  if (Array.isArray(response.items)) return response.items;\n  if (Array.isArray(response.Items)) return response.Items;\n  return [];\n};\n\nconst childItems = (obj, prop) => {\n  if (!obj) return [];\n  const v = obj[prop];\n  if (Array.isArray(v)) return v;\n  if (v && Array.isArray(v.items)) return v.items;\n  if (v && Array.isArray(v.Items)) return v.Items;\n  return [];\n};\n\nconst firstNonBlank = (vals) => {\n  for (let i = 0; i < vals.length; i++) {\n    const v = vals[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '') return v;\n  }\n  return null;\n};\n\nconst upper = (v) => String(v === null || v === undefined ? '' : v).trim().toUpperCase();\n\nconst asString = (v) => (v === null || v === undefined) ? '' : String(v).trim();\n\nconst displayNameFromNameItem = (n) => {\n  if (!n) return null;\n  const fullFromParts = firstNonBlank([\n    n.FullName,\n    n.DisplayName,\n    n.ListName,\n    n.Name,\n    (firstNonBlank([n.FirstName, n.GivenName]) && firstNonBlank([n.LastName, n.FamilyName])) ? (firstNonBlank([n.FirstName, n.GivenName]) + ' ' + firstNonBlank([n.LastName, n.FamilyName])) : null\n  ]);\n  return fullFromParts;\n};\n\nconst displayName = (person) => {\n  if (!person) return null;\n  const names = childItems(person, 'names');\n  let primaryName = null;\n  let globalName = null;\n  let anyName = null;\n  for (let i = 0; i < names.length; i++) {\n    const n = names[i] || {};\n    const dn = displayNameFromNameItem(n);\n    if (!dn) continue;\n    if (!anyName) anyName = dn;\n    if (!primaryName && (n.PrimaryFlag === true || upper(n.PrimaryFlag) === 'TRUE' || upper(n.PrimaryFlag) === 'Y')) primaryName = dn;\n    if (!globalName && (upper(n.NameType) === 'GLOBAL' || upper(n.NameType) === 'GLOBAL_NAME')) globalName = dn;\n  }\n  return firstNonBlank([\n    person.DisplayName,\n    person.displayName,\n    person.PersonDisplayName,\n    person.FullName,\n    person.Name,\n    person.PersonName,\n    primaryName,\n    globalName,\n    anyName,\n    person.PersonNumber\n  ]);\n};\n\nconst personNumberFromAssignmentNumber = (assignmentNumber) => {\n  const s = asString(assignmentNumber);\n  if (!s) return null;\n  const m = /(\\d+)$/.exec(s);\n  return m ? m[1] : null;\n};\n\nconst directLinksOf = (item) => {\n  if (!item) return [];\n  let links = [];\n  if (Array.isArray(item.links)) links = links.concat(item.links);\n  if (Array.isArray(item.Links)) links = links.concat(item.Links);\n  return links;\n};\n\nconst contextLinksOf = (item) => {\n  if (!item) return [];\n  let links = [];\n  const c = item['@context'] || item.context || item.Context || null;\n  if (c && Array.isArray(c.links)) links = links.concat(c.links);\n  if (c && Array.isArray(c.Links)) links = links.concat(c.Links);\n  return links;\n};\n\nconst keyLooksLikeOpaqueHrefKey = (key) => {\n  const k = asString(key);\n  if (!k) return false;\n  if (k.indexOf(',') >= 0 || k.indexOf('%2C') >= 0 || k.indexOf('%2c') >= 0) return false;\n  if (/^\\d+$/.test(k)) return true;\n  // Oracle opaque REST keys from the raw href are long hexadecimal hash-like values.\n  return /^[0-9A-Fa-f]{40,}$/.test(k);\n};\n\nconst leftPad = (text, length, padChar) => {\n  let s = asString(text);\n  const p = asString(padChar) || '0';\n  while (s.length < length) s = p + s;\n  return s;\n};\n\nconst numericIdFromEffectiveDatedKey = (key) => {\n  const k = asString(key);\n  if (!k) return null;\n  const decoded = k.replace(/%2C/gi, ',');\n  const first = decoded.split(',')[0];\n  if (/^\\d+$/.test(first)) return first;\n  return null;\n};\n\nconst dateToUtcMidnightMillisHex = (dateText) => {\n  const d = asString(dateText);\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(d);\n  if (!m) return null;\n  const y = Number(m[1]);\n  const mo = Number(m[2]);\n  const day = Number(m[3]);\n  const millis = Date.UTC(y, mo - 1, day);\n  if (!isFinite(millis)) return null;\n  return leftPad(millis.toString(16).toUpperCase(), 16, '0');\n};\n\nconst oracleOpaqueKeyFromIdAndDate = (numericId, dateText) => {\n  const idText = asString(numericId);\n  if (!/^\\d+$/.test(idText)) return null;\n  const idNumber = Number(idText);\n  if (!isFinite(idNumber)) return null;\n  const idHex = leftPad(idNumber.toString(16).toUpperCase(), 13, '0');\n  const dateHex = dateToUtcMidnightMillisHex(dateText);\n  if (!dateHex) return null;\n  // This is the same serialized ADF key pattern observed in the raw workers, assignments, and managers hrefs.\n  return '00020000000EACED00057708000' +\n    idHex +\n    '0000004AACED00057372000D6A6176612E73716C2E4461746514FA46683F3566970200007872000E6A6176612E7574696C2E44617465686A81014B59741903000078707708' +\n    dateHex +\n    '78';\n};\n\nconst resolveOpaqueKey = (rawKey, numericId, lookupDateForKey, label, warnings) => {\n  if (keyLooksLikeOpaqueHrefKey(rawKey)) {\n    return { key: rawKey, source: 'raw_href', rawKey: rawKey };\n  }\n  const idCandidate = firstNonBlank([numericId, numericIdFromEffectiveDatedKey(rawKey)]);\n  const generated = oracleOpaqueKeyFromIdAndDate(idCandidate, lookupDateForKey);\n  if (generated && keyLooksLikeOpaqueHrefKey(generated)) {\n    warnings.push(label + ' REST key was generated from numeric ID ' + idCandidate + ' and lookup effective date ' + lookupDateForKey + ' because Agent Studio returned a transformed effective-dated key instead of the raw href key.');\n    return { key: generated, source: 'generated_from_numeric_id_and_lookup_date', rawKey: rawKey };\n  }\n  return { key: rawKey, source: rawKey ? 'unusable_transformed_key' : 'not_found', rawKey: rawKey };\n};\n\nconst keyAfterSegment = (href, segment) => {\n  if (!href || !segment) return null;\n  const marker = '/' + segment + '/';\n  const text = String(href);\n  const idx = text.indexOf(marker);\n  if (idx < 0) return null;\n  const rest = text.substring(idx + marker.length);\n  const key = rest.split('/')[0].split('?')[0];\n  return key || null;\n};\n\nconst keyFromLinks = (links, segment, expectedName) => {\n  let fallback = null;\n  for (let i = 0; i < links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const name = asString(l.name);\n    if (expectedName && name && name !== expectedName) continue;\n    const rel = asString(l.rel).toLowerCase();\n    const key = keyAfterSegment(l.href, segment);\n    if (!key) continue;\n    if ((rel === 'self' || rel === 'canonical') && keyLooksLikeOpaqueHrefKey(key)) return key;\n    if (!fallback) fallback = key;\n  }\n  for (let i = 0; i < links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const key = keyAfterSegment(l.href, segment);\n    if (keyLooksLikeOpaqueHrefKey(key)) return key;\n  }\n  return fallback;\n};\n\nconst keyFromItem = (item, segment, expectedName) => {\n  // Prefer raw REST payload links. Agent Studio @context links can contain numeric effective-dated keys\n  // such as 300000...%2C2026-06-02, and those keys caused the 404 in this instance.\n  const directKey = keyFromLinks(directLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(directKey)) return directKey;\n  const contextKey = keyFromLinks(contextLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(contextKey)) return contextKey;\n  return directKey || contextKey;\n};\n\nconst isNumericOnly = (v) => /^\\d+$/.test(asString(v));\n\nconst isDateInRange = (date, start, end) => {\n  const d = asString(date);\n  const s = asString(start);\n  const e = asString(end);\n  if (!d) return true;\n  if (s && d < s) return false;\n  if (e && d > e) return false;\n  return true;\n};\n\nconst workRelIsActive = (rel, asOfDate) => {\n  if (!rel) return false;\n  const start = firstNonBlank([rel.StartDate, rel.EffectiveStartDate]);\n  const end = firstNonBlank([rel.TerminationDate, rel.ProjectedTerminationDate, rel.EffectiveEndDate, '4712-12-31']);\n  return isDateInRange(asOfDate, start, end);\n};\n\nconst workRelIsPrimary = (rel) => {\n  return rel && (rel.PrimaryFlag === true || upper(rel.PrimaryFlag) === 'TRUE' || upper(rel.PrimaryFlag) === 'Y');\n};\n\nconst assignmentIsPrimary = (a) => {\n  return a && (\n    a.PrimaryAssignmentFlag === true ||\n    a.AssignmentPrimaryFlag === true ||\n    a.PrimaryFlag === true ||\n    upper(a.PrimaryAssignmentFlag) === 'TRUE' ||\n    upper(a.AssignmentPrimaryFlag) === 'TRUE' ||\n    upper(a.PrimaryFlag) === 'TRUE' ||\n    upper(a.PrimaryAssignmentFlag) === 'Y' ||\n    upper(a.PrimaryFlag) === 'Y'\n  );\n};\n\nconst assignmentIsActive = (a, asOfDate) => {\n  if (!a) return false;\n  const status = upper(firstNonBlank([a.AssignmentStatusType, a.AssignmentStatusTypeCode, a.AssignmentStatus, a.AssignmentStatusMeaning]));\n  const statusActive = !status || status.indexOf('ACTIVE') >= 0 || status === 'ACT';\n  const inRange = isDateInRange(asOfDate, a.EffectiveStartDate, firstNonBlank([a.EffectiveEndDate, '4712-12-31']));\n  const latest = !a.EffectiveLatestChange || upper(a.EffectiveLatestChange) === 'Y' || upper(a.EffectiveLatestChange) === 'TRUE';\n  return statusActive && inRange && latest;\n};\n\nconst chooseWorkRelationship = (worker, asOfDate, errors, label) => {\n  const rels = childItems(worker, 'workRelationships');\n  if (!rels.length) return null;\n  const active = [];\n  for (let i = 0; i < rels.length; i++) {\n    if (workRelIsActive(rels[i], asOfDate)) active.push(rels[i]);\n  }\n  const candidates = active.length ? active : rels;\n  const primaryActive = [];\n  for (let i = 0; i < candidates.length; i++) {\n    if (workRelIsPrimary(candidates[i])) primaryActive.push(candidates[i]);\n  }\n  if (primaryActive.length === 1) return primaryActive[0];\n  if (active.length === 1) return active[0];\n  if (primaryActive.length > 1) errors.push('More than one active primary work relationship was found for ' + label + '. Please resolve the duplicate work relationship before using the agent.');\n  else if (active.length > 1) errors.push('More than one active work relationship was found for ' + label + '. Please resolve the duplicate work relationship before using the agent.');\n  return candidates[0];\n};\n\nconst chooseAssignment = (rel, asOfDate, errors, label) => {\n  const assignments = childItems(rel, 'assignments');\n  if (!assignments.length) return null;\n  const activePrimary = [];\n  const primary = [];\n  const active = [];\n  for (let i = 0; i < assignments.length; i++) {\n    if (assignmentIsPrimary(assignments[i])) primary.push(assignments[i]);\n    if (assignmentIsActive(assignments[i], asOfDate)) active.push(assignments[i]);\n    if (assignmentIsPrimary(assignments[i]) && assignmentIsActive(assignments[i], asOfDate)) activePrimary.push(assignments[i]);\n  }\n  if (activePrimary.length === 1) return activePrimary[0];\n  if (activePrimary.length > 1) errors.push('More than one active primary assignment was found for ' + label + '. Please resolve the duplicate assignment before using the agent.');\n  if (primary.length === 1) return primary[0];\n  if (active.length === 1) return active[0];\n  if (active.length > 1) errors.push('More than one active assignment was found for ' + label + '. Please resolve the duplicate assignment before using the agent.');\n  return assignments[0];\n};\n\nconst managerDisplay = (mgr) => {\n  return firstNonBlank([\n    mgr && mgr.ManagerName,\n    mgr && mgr.ManagerDisplayName,\n    mgr && mgr.DisplayName,\n    mgr && mgr.ManagerPersonName,\n    mgr && mgr.ManagerPersonNumber,\n    mgr && mgr.ManagerAssignmentNumber,\n    'Not currently assigned'\n  ]);\n};\n\nconst managerOverlapsDate = (mgr, date) => {\n  if (!mgr) return false;\n  return isDateInRange(date, mgr.EffectiveStartDate, firstNonBlank([mgr.EffectiveEndDate, '4712-12-31']));\n};\n\nconst managersForType = (assign, managerType) => {\n  const managers = childItems(assign, 'managers');\n  const matches = [];\n  for (let i = 0; i < managers.length; i++) {\n    if (upper(managers[i] && managers[i].ManagerType) === managerType) matches.push(managers[i]);\n  }\n  return matches;\n};\n\nconst activeManagersForType = (assign, managerType, date) => {\n  const matches = managersForType(assign, managerType);\n  const active = [];\n  for (let i = 0; i < matches.length; i++) {\n    if (managerOverlapsDate(matches[i], date)) active.push(matches[i]);\n  }\n  return active;\n};\n\nconst recordForManager = (assign, managerType, date, errors) => {\n  const matches = managersForType(assign, managerType);\n  const active = activeManagersForType(assign, managerType, date);\n  if (active.length > 1) {\n    errors.push('Duplicate active ' + managerType + ' records were found for the active primary assignment on ' + date + '. Please correct the duplicate manager rows before using the agent.');\n  }\n  const mgr = active.length ? active[0] : (matches.length === 1 ? matches[0] : null);\n  if (matches.length > 1 && active.length === 0) {\n    errors.push('Multiple ' + managerType + ' records were found, but none is active for ' + date + '. Please review the manager date ranges before using the agent.');\n  }\n  const rawManagersUniqID = mgr ? keyFromItem(mgr, 'managers', 'managers') : null;\n  const managerIdForKey = mgr ? firstNonBlank([mgr.AssignmentSupervisorId, mgr.assignmentSupervisorId, numericIdFromEffectiveDatedKey(rawManagersUniqID)]) : null;\n  const managerKeyResolution = mgr ? resolveOpaqueKey(rawManagersUniqID, managerIdForKey, lookupDate, managerType + ' manager', warnings) : { key: null, source: 'not_found', rawKey: null };\n  const managersUniqID = (asString(managerIdForKey) !== '') ? asString(managerIdForKey) : managerKeyResolution.key;\n  const currentManagerAssignmentNumber = mgr ? firstNonBlank([mgr.ManagerAssignmentNumber, mgr.managerAssignmentNumber]) : null;\n  const currentManagerPersonNumber = personNumberFromAssignmentNumber(currentManagerAssignmentNumber);\n  return {\n    exists: !!mgr,\n    activeOnEffectiveDate: !!(mgr && managerOverlapsDate(mgr, date)),\n    managerRecordCount: matches.length,\n    activeRecordCount: active.length,\n    managersUniqID: managersUniqID,\n    rawManagersUniqID: rawManagersUniqID,\n    managersUniqIDSource: managerKeyResolution.source,\n    currentManager: mgr ? managerDisplay(mgr) : 'Not currently assigned',\n    currentManagerAssignmentNumber: currentManagerAssignmentNumber,\n    currentManagerPersonNumber: currentManagerPersonNumber,\n    managerTypeMeaning: mgr ? firstNonBlank([mgr.ManagerTypeMeaning, mgr.ManagerType, managerType]) : managerType,\n    effectiveStartDate: mgr ? mgr.EffectiveStartDate : null,\n    effectiveEndDate: mgr ? mgr.EffectiveEndDate : null\n  };\n};\n\nconst buildPayload = (managerType, mode, assignmentId, assignmentNumber, reasonCode) => {\n  // Effective-dated UPDATE requires ActionCode (probe same-day CORRECTION tolerated omitting it).\n  const p = {\n    ActionCode: 'MANAGER_CHANGE',\n    ManagerType: managerType,\n    ManagerAssignmentNumber: assignmentNumber\n  };\n  if (mode === 'create') {\n    p.EffectiveStartDate = updateDate;\n    p.EffectiveEndDate = '4712-12-31';\n  }\n  if (reasonCode) p.ReasonCode = reasonCode;\n  return p;\n};\n\nconst targetItems = itemsOf(targetResponse);\nconst newMgrItems = itemsOf(newMgrResponse);\nconst errors = [];\nconst warnings = [];\n\nconst lookupLabel = (person) => {\n  if (!person) return 'Name not available | Person Number: Not available';\n  const pn = firstNonBlank([person.PersonNumber, person.personNumber, 'Not available']);\n  const dn = displayName(person) || 'Name not available';\n  return dn + ' | Person Number: ' + pn;\n};\n\nconst duplicateListText = (items) => {\n  const rows = [];\n  for (let i = 0; i < items.length; i++) rows.push(lookupLabel(items[i]));\n  return rows.join('; ');\n};\n\nif (lookupCtx.hasError === true && lookupCtx.errors && lookupCtx.errors.length) {\n  for (let i = 0; i < lookupCtx.errors.length; i++) errors.push(lookupCtx.errors[i]);\n}\n\nif (lookupCtx.targetLookupMode === 'DISPLAY_NAME' && targetItems.length > 1) {\n  errors.push('Multiple workers were found for display name ' + lookupCtx.targetLookupText + '. Please rerun the request using the correct worker person number. Matches: ' + duplicateListText(targetItems));\n}\nif (lookupCtx.newManagerLookupMode === 'DISPLAY_NAME' && newMgrItems.length > 1) {\n  errors.push('Multiple proposed managers were found for display name ' + lookupCtx.newManagerLookupText + '. Please rerun the request using the correct proposed manager person number. Matches: ' + duplicateListText(newMgrItems));\n}\n\nconst targetWorker = targetItems.length ? targetItems[0] : null;\nconst newManagerWorker = newMgrItems.length ? newMgrItems[0] : null;\n\nif (!targetWorker) errors.push('Target worker was not found for ' + (lookupCtx.targetLookupText || req.workerPersonNumber) + '.');\nif (!newManagerWorker) errors.push('New manager was not found for ' + (lookupCtx.newManagerLookupText || req.newManagerPersonNumber) + '.');\n\nlet targetRel = null;\nlet targetAssign = null;\nlet newMgrRel = null;\nlet newMgrAssign = null;\n\nif (targetWorker) {\n  targetRel = chooseWorkRelationship(targetWorker, lookupDate, errors, 'target worker ' + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetRel) errors.push('No work relationship was found for the target worker.');\n  targetAssign = chooseAssignment(targetRel, lookupDate, errors, 'target worker ' + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetAssign) errors.push('No active primary assignment was found for the target worker.');\n}\n\nif (newManagerWorker) {\n  newMgrRel = chooseWorkRelationship(newManagerWorker, lookupDate, errors, 'new manager ' + (lookupCtx.newManagerLookupText || req.newManagerPersonNumber));\n  newMgrAssign = chooseAssignment(newMgrRel, lookupDate, errors, 'new manager ' + (lookupCtx.newManagerLookupText || req.newManagerPersonNumber));\n  if (!newMgrAssign) errors.push('No active primary assignment was found for the new manager.');\n}\n\nconst rawWorkersUniqID = targetWorker ? keyFromItem(targetWorker, 'workers', 'workers') : null;\nconst targetWorkerIdForKey = targetWorker ? firstNonBlank([targetWorker.PersonId, targetWorker.personId, numericIdFromEffectiveDatedKey(rawWorkersUniqID)]) : null;\nconst workerKeyResolution = targetWorker ? resolveOpaqueKey(rawWorkersUniqID, targetWorkerIdForKey, lookupDate, 'Worker', warnings) : { key: null, source: 'not_found', rawKey: null };\nconst workersUniqID = (asString(targetWorkerIdForKey) !== '') ? asString(targetWorkerIdForKey) : workerKeyResolution.key;\nconst periodOfServiceId = firstNonBlank([targetRel && targetRel.PeriodOfServiceId, targetRel && targetRel.periodOfServiceId]);\n\nconst targetAssignmentId = firstNonBlank([targetAssign && targetAssign.AssignmentId, targetAssign && targetAssign.assignmentId]);\nconst rawAssignmentsUniqID = targetAssign ? keyFromItem(targetAssign, 'assignments', 'assignments') : null;\nconst assignmentIdForKey = firstNonBlank([targetAssignmentId, numericIdFromEffectiveDatedKey(rawAssignmentsUniqID)]);\nconst assignmentKeyResolution = targetAssign ? resolveOpaqueKey(rawAssignmentsUniqID, assignmentIdForKey, lookupDate, 'Assignment', warnings) : { key: null, source: 'not_found', rawKey: null };\nconst assignmentsUniqID = (asString(assignmentIdForKey) !== '') ? asString(assignmentIdForKey) : assignmentKeyResolution.key;\nconst targetAssignmentNumber = firstNonBlank([targetAssign && targetAssign.AssignmentNumber, targetAssign && targetAssign.AssignmentName]);\nconst newManagerAssignmentId = firstNonBlank([newMgrAssign && newMgrAssign.AssignmentId, newMgrAssign && newMgrAssign.assignmentId]);\nconst newManagerAssignmentNumber = firstNonBlank([newMgrAssign && newMgrAssign.AssignmentNumber, newMgrAssign && newMgrAssign.assignmentNumber, newMgrAssign && newMgrAssign.AssignmentName]);\n\nif (!workersUniqID) errors.push('The workersUniqID could not be resolved from the worker self link named workers.');\nif (workersUniqID && !keyLooksLikeOpaqueHrefKey(workersUniqID)) errors.push('The workersUniqID resolved to ' + workersUniqID + ', which is not usable. The agent could not generate an opaque REST key from PersonId ' + targetWorkerIdForKey + ' and lookup effective date ' + lookupDate + '.');\nif (!periodOfServiceId) errors.push('The PeriodOfServiceId could not be resolved from the active work relationship.');\nif (!assignmentsUniqID) errors.push('The assignmentsUniqID could not be resolved from the active primary assignment self link named assignments.');\nif (assignmentsUniqID && !keyLooksLikeOpaqueHrefKey(assignmentsUniqID)) errors.push('The assignmentsUniqID resolved to ' + assignmentsUniqID + ', which is not usable. The agent could not generate an opaque REST key from AssignmentId ' + assignmentIdForKey + ' and lookup effective date ' + lookupDate + '.');\nif (!newManagerAssignmentNumber) errors.push('The new manager assignment number could not be resolved from the new manager active primary assignment.');\n\nconst requestedManagerTypes = req.updateType === 'LINE_MANAGER' ? ['LINE_MANAGER', 'REWARD_MANAGER'] : ['PROJECT_MANAGER'];\nconst managerRecords = {};\nconst payloads = {};\nconst updateItems = [];\nconst skippedItems = [];\n\nif (targetAssign && newManagerAssignmentNumber) {\n  for (let i = 0; i < requestedManagerTypes.length; i++) {\n    const mt = requestedManagerTypes[i];\n    const rec = recordForManager(targetAssign, mt, updateDate, errors);\n    managerRecords[mt] = rec;\n    payloads[mt] = {\n      patchPayload: buildPayload(mt, 'patch', newManagerAssignmentId, newManagerAssignmentNumber, req.reasonCode),\n      createPayload: buildPayload(mt, 'create', newManagerAssignmentId, newManagerAssignmentNumber, req.reasonCode)\n    };\n\n    if (rec.exists && !rec.managersUniqID) errors.push('The existing ' + mt + ' record was found, but the manager REST key could not be resolved from its self link.');\n    if (rec.exists && rec.managersUniqID && !keyLooksLikeOpaqueHrefKey(rec.managersUniqID)) errors.push('The existing ' + mt + ' manager key resolved to ' + rec.managersUniqID + ', which is not usable. The agent could not generate an opaque manager key from AssignmentSupervisorId and lookup effective date ' + lookupDate + '.');\n    if (rec.exists && !rec.activeOnEffectiveDate) errors.push('The existing ' + mt + ' record is not active on the requested effective date ' + updateDate + '. Current date range is ' + (rec.effectiveStartDate || 'unknown') + ' to ' + (rec.effectiveEndDate || 'unknown') + '.');\n\n    const shouldExecute = mt === 'LINE_MANAGER' || mt === 'PROJECT_MANAGER' || (mt === 'REWARD_MANAGER' && rec.exists === true);\n    if (shouldExecute) {\n      updateItems.push({\n        managerType: mt,\n        operation: rec.exists ? 'UPDATE' : 'CREATE',\n        currentManager: rec.currentManager,\n        currentManagerAssignmentNumber: rec.currentManagerAssignmentNumber,\n        currentManagerPersonNumber: rec.currentManagerPersonNumber,\n        currentEffectiveStartDate: rec.effectiveStartDate,\n        currentEffectiveEndDate: rec.effectiveEndDate,\n        newManager: displayName(newManagerWorker),\n        newManagerPersonNumber: firstNonBlank([newManagerWorker && newManagerWorker.PersonNumber, newManagerWorker && newManagerWorker.personNumber, req.newManagerPersonNumber]),\n        newManagerAssignmentNumber: newManagerAssignmentNumber\n      });\n    } else {\n      skippedItems.push({\n        managerType: mt,\n        operation: 'SKIP',\n        currentManager: rec.currentManager,\n        currentManagerAssignmentNumber: rec.currentManagerAssignmentNumber,\n        currentManagerPersonNumber: rec.currentManagerPersonNumber,\n        reason: 'No existing Reward Manager record was found. This workflow updates Reward Manager only when a Reward Manager row already exists; it does not create a new Reward Manager row.'\n      });\n    }\n  }\n}\n\nconst firstUpdateItem = updateItems.length ? updateItems[0] : null;\nconst primaryExistingManagerPersonNumber = firstUpdateItem ? firstUpdateItem.currentManagerPersonNumber : null;\nconst primaryExistingManagerAssignmentNumber = firstUpdateItem ? firstUpdateItem.currentManagerAssignmentNumber : null;\n\nconst result = {\n  hasError: errors.length > 0,\n  errors: errors,\n  warnings: warnings,\n  request: req,\n  lookupEffectiveDate: lookupDate,\n  updateEffectiveDate: updateDate,\n  workersUniqID: workersUniqID,\n  rawWorkersUniqID: rawWorkersUniqID,\n  workersUniqIDSource: workerKeyResolution.source,\n  periodOfServiceId: periodOfServiceId,\n  assignmentsUniqID: assignmentsUniqID,\n  rawAssignmentsUniqID: rawAssignmentsUniqID,\n  assignmentsUniqIDSource: assignmentKeyResolution.source,\n  targetWorkerName: displayName(targetWorker),\n  targetWorkerPersonNumber: firstNonBlank([targetWorker && targetWorker.PersonNumber, targetWorker && targetWorker.personNumber, req.workerPersonNumber]),\n  targetAssignmentId: targetAssignmentId,\n  targetAssignmentNumber: targetAssignmentNumber,\n  newManagerName: displayName(newManagerWorker),\n  newManagerPersonNumber: firstNonBlank([newManagerWorker && newManagerWorker.PersonNumber, newManagerWorker && newManagerWorker.personNumber, req.newManagerPersonNumber]),\n  newManagerAssignmentId: newManagerAssignmentId,\n  newManagerAssignmentNumber: newManagerAssignmentNumber,\n  primaryExistingManagerPersonNumber: primaryExistingManagerPersonNumber,\n  primaryExistingManagerAssignmentNumber: primaryExistingManagerAssignmentNumber,\n  requestedManagerTypes: requestedManagerTypes,\n  managerTypes: updateItems.map(item => item.managerType),\n  managerRecords: managerRecords,\n  payloads: payloads,\n  updateItems: updateItems,\n  skippedItems: skippedItems,\n  effectiveHeaderPatch: 'RangeMode=UPDATE;RangeStartDate=' + updateDate + ';RangeEndDate=4712-12-31',\n  effectiveHeaderCreate: 'RangeStartDate=' + updateDate + ';RangeEndDate=4712-12-31'\n};\n\nreturn result;"
+          },
+          "outcomes": {
+            "success": "950000011"
+          },
+          "code": "BUILD_MANAGER_UPDATE_CONTEXT",
+          "id": "9000000000010",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "If Context Has Error"
+          },
+          "outcomes": {
+            "true": "9000000000099",
+            "false": "9000000000032"
+          },
+          "code": "IF_CONTEXT_HAS_ERROR",
+          "convergenceTargetId": "end",
+          "id": "9000000000011",
+          "inputs": [
+            {
+              "id": "9000000000011_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.hasError === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Format Context Error",
+            "returnType": "object",
+            "sourceCode": "const errors = $context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.errors || [];\nlet message = 'I could not prepare the manager update because:<br><ul>' + errors.map(e => '<li>' + e + '</li>').join('') + '</ul>';\nreturn { message };"
+          },
+          "outcomes": {
+            "success": "9000000000012"
+          },
+          "code": "FORMAT_CONTEXT_ERROR",
+          "id": "9000000000099",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Return Context Error"
+          },
+          "outcomes": {},
+          "code": "RETURN_CONTEXT_ERROR",
+          "convergenceTargetId": "end",
+          "id": "9000000000012",
+          "inputs": [
+            {
+              "id": "9000000000012_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "{{$context.$nodes.FORMAT_CONTEXT_ERROR.$output.result.message}}"
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "If Current Manager Lookup Needed"
+          },
+          "outcomes": {
+            "true": "9000000000033",
+            "false": "9000000000013"
+          },
+          "code": "IF_CURRENT_MANAGER_LOOKUP_NEEDED",
+          "convergenceTargetId": "end",
+          "id": "9000000000032",
+          "inputs": [
+            {
+              "id": "9000000000032_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{($context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.primaryExistingManagerPersonNumber || '') !== ''}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+            "functionName": "get_worker_manager_update_details",
+            "name": "Get Current Manager"
+          },
+          "outcomes": {
+            "success": "9000000000013"
+          },
+          "code": "GET_CURRENT_MANAGER",
+          "id": "9000000000033",
+          "inputs": [
+            {
+              "id": "9000000000033_1",
+              "name": "workerQuery",
+              "type": "string",
+              "value": "PersonNumber='{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.primaryExistingManagerPersonNumber}}'"
+            },
+            {
+              "id": "9000000000033_2",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$system.$currentDate}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Build Manager Update Confirmation",
+            "returnType": "object",
+            "sourceCode": "const ctx = $context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result;\nconst req = ctx.request || new Object();\nconst currentMgrResponse = ($context.$nodes.GET_CURRENT_MANAGER && $context.$nodes.GET_CURRENT_MANAGER.$output) || new Object();\n\nconst firstNonBlank = (vals) => {\n  for (let i = 0; i < vals.length; i++) {\n    const v = vals[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '') return v;\n  }\n  return null;\n};\n\nconst asString = (v) => (v === null || v === undefined) ? '' : String(v).trim();\nconst upper = (v) => asString(v).toUpperCase();\n\nconst escapeHtml = (v) => {\n  return asString(v)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n};\n\nconst itemsOf = (response) => {\n  if (!response) return [];\n  if (Array.isArray(response.items)) return response.items;\n  if (Array.isArray(response.Items)) return response.Items;\n  return [];\n};\n\nconst childItems = (obj, prop) => {\n  if (!obj) return [];\n  const v = obj[prop];\n  if (Array.isArray(v)) return v;\n  if (v && Array.isArray(v.items)) return v.items;\n  if (v && Array.isArray(v.Items)) return v.Items;\n  return [];\n};\n\nconst displayNameFromNameItem = (n) => {\n  if (!n) return null;\n  return firstNonBlank([\n    n.FullName,\n    n.DisplayName,\n    n.ListName,\n    n.Name,\n    (firstNonBlank([n.FirstName, n.GivenName]) && firstNonBlank([n.LastName, n.FamilyName])) ? (firstNonBlank([n.FirstName, n.GivenName]) + ' ' + firstNonBlank([n.LastName, n.FamilyName])) : null\n  ]);\n};\n\nconst displayName = (person) => {\n  if (!person) return null;\n  const names = childItems(person, 'names');\n  let primaryName = null;\n  let globalName = null;\n  let anyName = null;\n  for (let i = 0; i < names.length; i++) {\n    const n = names[i] || new Object();\n    const dn = displayNameFromNameItem(n);\n    if (!dn) continue;\n    if (!anyName) anyName = dn;\n    if (!primaryName && (n.PrimaryFlag === true || upper(n.PrimaryFlag) === 'TRUE' || upper(n.PrimaryFlag) === 'Y')) primaryName = dn;\n    if (!globalName && (upper(n.NameType) === 'GLOBAL' || upper(n.NameType) === 'GLOBAL_NAME')) globalName = dn;\n  }\n  return firstNonBlank([\n    person.DisplayName,\n    person.displayName,\n    person.PersonDisplayName,\n    person.FullName,\n    person.Name,\n    person.PersonName,\n    primaryName,\n    globalName,\n    anyName,\n    person.PersonNumber\n  ]);\n};\n\nconst currentMgrItems = itemsOf(currentMgrResponse);\nconst currentMgrWorker = currentMgrItems.length ? currentMgrItems[0] : null;\nconst currentMgrLookupName = displayName(currentMgrWorker);\nconst currentMgrLookupPersonNumber = currentMgrWorker ? firstNonBlank([currentMgrWorker.PersonNumber, currentMgrWorker.personNumber]) : null;\n\nconst formatPerson = (name, personNumber, assignmentNumber) => {\n  const n = asString(name);\n  const pn = asString(personNumber);\n  const an = asString(assignmentNumber);\n  let label = n;\n  if (!label || label === pn || label === an) label = 'Name not available';\n  let out = `<b>${escapeHtml(label)}</b>`;\n  if (pn) out += ` | Person Number: ${escapeHtml(pn)}`;\n  if (an) out += ` | Assignment: ${escapeHtml(an)}`;\n  return out;\n};\n\nconst proposedManagerDisplayForItem = (item) => {\n  return formatPerson(ctx.newManagerName || item.newManager, item.newManagerPersonNumber || ctx.newManagerPersonNumber, item.newManagerAssignmentNumber || ctx.newManagerAssignmentNumber);\n};\n\nconst currentManagerDisplayForItem = (item) => {\n  const itemPersonNumber = asString(item.currentManagerPersonNumber);\n  let name = null;\n  if (currentMgrLookupName && itemPersonNumber && asString(currentMgrLookupPersonNumber) === itemPersonNumber) name = currentMgrLookupName;\n  if (!name) name = item.currentManager;\n  return formatPerson(name, item.currentManagerPersonNumber, item.currentManagerAssignmentNumber);\n};\n\nconst itemForType = (managerType) => {\n  const items = ctx.updateItems || [];\n  for (let i = 0; i < items.length; i++) {\n    if (upper(items[i].managerType) === managerType) return items[i];\n  }\n  return null;\n};\n\nconst skippedForType = (managerType) => {\n  const items = ctx.skippedItems || [];\n  for (let i = 0; i < items.length; i++) {\n    if (upper(items[i].managerType) === managerType) return items[i];\n  }\n  return null;\n};\n\nconst rangeText = (item) => {\n  const start = item && item.currentEffectiveStartDate ? item.currentEffectiveStartDate : 'Not available';\n  const end = item && item.currentEffectiveEndDate ? item.currentEffectiveEndDate : 'Not available';\n  return `${escapeHtml(start)} to ${escapeHtml(end)}`;\n};\n\nconst changeTypeLabel = req.updateType === 'LINE_MANAGER'\n  ? 'Line Manager update'\n  : 'Project Manager update';\n\nlet msg = `<b>Confirm Manager Update</b><br><br>`;\n\nmsg += `<b>Request Summary</b><br>`;\nmsg += `<ul>`;\nmsg += `<li><b>Requested Change</b>: ${escapeHtml(changeTypeLabel)}</li>`;\nmsg += `<li><b>Employee</b>: ${formatPerson(ctx.targetWorkerName, ctx.targetWorkerPersonNumber, ctx.targetAssignmentNumber)}</li>`;\nmsg += `<li><b>Proposed Manager</b>: ${formatPerson(ctx.newManagerName, ctx.newManagerPersonNumber, ctx.newManagerAssignmentNumber)}</li>`;\nmsg += `<li><b>Effective Date</b>: ${escapeHtml(req.effectiveDate)}</li>`;\nif (req.reasonCode) msg += `<li><b>Reason Code</b>: ${escapeHtml(req.reasonCode)}</li>`;\nmsg += `</ul>`;\n\nconst addUpdateSection = (title, managerType) => {\n  const item = itemForType(managerType);\n  const skipped = skippedForType(managerType);\n  msg += `<b>${escapeHtml(title)}</b><br>`;\n  msg += `<ul>`;\n  if (item) {\n    msg += `<li><b>Action</b>: ${escapeHtml(item.operation)}</li>`;\n    msg += `<li><b>Existing Manager</b>: ${currentManagerDisplayForItem(item)}</li>`;\n    msg += `<li><b>Proposed Manager</b>: ${proposedManagerDisplayForItem(item)}</li>`;\n    msg += `<li><b>Existing Manager Date Range</b>: ${rangeText(item)}</li>`;\n    msg += `<li><b>Change Effective From</b>: ${escapeHtml(req.effectiveDate)}</li>`;\n  } else if (skipped) {\n    msg += `<li><b>Action</b>: No update will be performed</li>`;\n    msg += `<li><b>Reason</b>: ${escapeHtml(skipped.reason)}</li>`;\n  } else {\n    msg += `<li>No ${escapeHtml(title)} record is prepared for this request.</li>`;\n  }\n  msg += `</ul>`;\n};\n\nif (req.updateType === 'LINE_MANAGER') {\n  addUpdateSection('Line Manager Update Details', 'LINE_MANAGER');\n  addUpdateSection('Reward Manager Update Details', 'REWARD_MANAGER');\n} else {\n  addUpdateSection('Project Manager Update Details', 'PROJECT_MANAGER');\n}\n\nmsg += `<b>Approval Action</b><br>`;\nmsg += `Click <b>Approve</b> to submit this manager update to Oracle HCM. Click <b>Reject</b> to cancel without making any change.`;\n\nreturn { message: msg };"
+          },
+          "outcomes": {
+            "success": "9000009002"
+          },
+          "code": "BUILD_MANAGER_UPDATE_CONFIRMATION",
+          "id": "9000000000013",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Switch Manager Update Type"
+          },
+          "outcomes": {
+            "LINE_MANAGER": "9000000000018",
+            "PROJECT_MANAGER": "9000000000024"
+          },
+          "code": "SWITCH_MANAGER_UPDATE_TYPE",
+          "convergenceTargetId": "end",
+          "id": "9000000000016",
+          "inputs": [
+            {
+              "id": "9000000000016_1",
+              "name": "caseExpression",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.updateType}}"
+            }
+          ],
+          "type": "SWITCH"
+        },
+        {
+          "metadata": {
+            "name": "If Line Manager Exists"
+          },
+          "outcomes": {
+            "true": "9000000000019",
+            "false": "9000000000020"
+          },
+          "code": "IF_LINE_MANAGER_EXISTS",
+          "convergenceTargetId": "9000000000021",
+          "id": "9000000000018",
+          "inputs": [
+            {
+              "id": "9000000000018_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.managerRecords.LINE_MANAGER.exists === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+            "errorNodeId": "9000000000030",
+            "functionName": "update_assignment_manager",
+            "name": "Patch Line Manager"
+          },
+          "outcomes": {
+            "success": "9000000000021"
+          },
+          "code": "PATCH_LINE_MANAGER",
+          "id": "9000000000019",
+          "inputs": [
+            {
+              "id": "9000000000019_1",
+              "name": "workersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.workersUniqID}}"
+            },
+            {
+              "id": "9000000000019_2",
+              "name": "PeriodOfServiceId",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.periodOfServiceId}}"
+            },
+            {
+              "id": "9000000000019_3",
+              "name": "assignmentsUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.assignmentsUniqID}}"
+            },
+            {
+              "id": "9000000000019_4",
+              "name": "managersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.managerRecords.LINE_MANAGER.managersUniqID}}"
+            },
+            {
+              "id": "9000000000019_5",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.effectiveDate}}"
+            },
+            {
+              "id": "9000000000019_6",
+              "name": "managerPayload",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.payloads.LINE_MANAGER.patchPayload}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+            "errorNodeId": "9000000000030",
+            "functionName": "create_assignment_manager",
+            "name": "Create Line Manager"
+          },
+          "outcomes": {
+            "success": "9000000000021"
+          },
+          "code": "POST_LINE_MANAGER",
+          "id": "9000000000020",
+          "inputs": [
+            {
+              "id": "9000000000020_1",
+              "name": "workersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.workersUniqID}}"
+            },
+            {
+              "id": "9000000000020_2",
+              "name": "PeriodOfServiceId",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.periodOfServiceId}}"
+            },
+            {
+              "id": "9000000000020_3",
+              "name": "assignmentsUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.assignmentsUniqID}}"
+            },
+            {
+              "id": "9000000000020_4",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.effectiveDate}}"
+            },
+            {
+              "id": "9000000000020_5",
+              "name": "managerPayload",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.payloads.LINE_MANAGER.createPayload}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "If Reward Manager Exists"
+          },
+          "outcomes": {
+            "true": "9000000000022",
+            "false": "9000000000030"
+          },
+          "code": "IF_REWARD_MANAGER_EXISTS",
+          "convergenceTargetId": "9000000000030",
+          "id": "9000000000021",
+          "inputs": [
+            {
+              "id": "9000000000021_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.managerRecords.REWARD_MANAGER.exists === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+            "errorNodeId": "9000000000030",
+            "functionName": "update_assignment_manager",
+            "name": "Patch Reward Manager"
+          },
+          "outcomes": {
+            "success": "9000000000030"
+          },
+          "code": "PATCH_REWARD_MANAGER",
+          "id": "9000000000022",
+          "inputs": [
+            {
+              "id": "9000000000022_1",
+              "name": "workersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.workersUniqID}}"
+            },
+            {
+              "id": "9000000000022_2",
+              "name": "PeriodOfServiceId",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.periodOfServiceId}}"
+            },
+            {
+              "id": "9000000000022_3",
+              "name": "assignmentsUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.assignmentsUniqID}}"
+            },
+            {
+              "id": "9000000000022_4",
+              "name": "managersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.managerRecords.REWARD_MANAGER.managersUniqID}}"
+            },
+            {
+              "id": "9000000000022_5",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.effectiveDate}}"
+            },
+            {
+              "id": "9000000000022_6",
+              "name": "managerPayload",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.payloads.REWARD_MANAGER.patchPayload}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "If Project Manager Exists"
+          },
+          "outcomes": {
+            "true": "9000000000025",
+            "false": "9000000000026"
+          },
+          "code": "IF_TIME_CARD_MANAGER_EXISTS",
+          "convergenceTargetId": "9000000000030",
+          "id": "9000000000024",
+          "inputs": [
+            {
+              "id": "9000000000024_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.managerRecords.PROJECT_MANAGER.exists === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+            "errorNodeId": "9000000000030",
+            "functionName": "update_assignment_manager",
+            "name": "Patch Project Manager"
+          },
+          "outcomes": {
+            "success": "9000000000030"
+          },
+          "code": "PATCH_TIME_CARD_MANAGER",
+          "id": "9000000000025",
+          "inputs": [
+            {
+              "id": "9000000000025_1",
+              "name": "workersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.workersUniqID}}"
+            },
+            {
+              "id": "9000000000025_2",
+              "name": "PeriodOfServiceId",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.periodOfServiceId}}"
+            },
+            {
+              "id": "9000000000025_3",
+              "name": "assignmentsUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.assignmentsUniqID}}"
+            },
+            {
+              "id": "9000000000025_4",
+              "name": "managersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.managerRecords.PROJECT_MANAGER.managersUniqID}}"
+            },
+            {
+              "id": "9000000000025_5",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.effectiveDate}}"
+            },
+            {
+              "id": "9000000000025_6",
+              "name": "managerPayload",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.payloads.PROJECT_MANAGER.patchPayload}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+            "errorNodeId": "9000000000030",
+            "functionName": "create_assignment_manager",
+            "name": "Create Project Manager"
+          },
+          "outcomes": {
+            "success": "9000000000030"
+          },
+          "code": "POST_TIME_CARD_MANAGER",
+          "id": "9000000000026",
+          "inputs": [
+            {
+              "id": "9000000000026_1",
+              "name": "workersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.workersUniqID}}"
+            },
+            {
+              "id": "9000000000026_2",
+              "name": "PeriodOfServiceId",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.periodOfServiceId}}"
+            },
+            {
+              "id": "9000000000026_3",
+              "name": "assignmentsUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.assignmentsUniqID}}"
+            },
+            {
+              "id": "9000000000026_4",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.effectiveDate}}"
+            },
+            {
+              "id": "9000000000026_5",
+              "name": "managerPayload",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result.payloads.PROJECT_MANAGER.createPayload}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Final Manager Update Response",
+            "returnType": "object",
+            "sourceCode": "const ctx = $context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result;\nconst req = ctx.request;\n\nconst firstNonBlankLocal = (vals) => {\n  for (let i = 0; i < vals.length; i++) {\n    const v = vals[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '') return v;\n  }\n  return null;\n};\n\nlet operationMap = [];\nif (req.updateType === 'LINE_MANAGER') {\n  operationMap.push({\n    type: 'LINE_MANAGER',\n    code: (ctx.managerRecords.LINE_MANAGER && ctx.managerRecords.LINE_MANAGER.exists) ? 'PATCH_LINE_MANAGER' : 'POST_LINE_MANAGER'\n  });\n  if (ctx.managerRecords.REWARD_MANAGER && ctx.managerRecords.REWARD_MANAGER.exists) {\n    operationMap.push({ type: 'REWARD_MANAGER', code: 'PATCH_REWARD_MANAGER' });\n  }\n} else {\n  operationMap.push({\n    type: 'PROJECT_MANAGER',\n    code: (ctx.managerRecords.PROJECT_MANAGER && ctx.managerRecords.PROJECT_MANAGER.exists) ? 'PATCH_PROJECT_MANAGER' : 'POST_PROJECT_MANAGER'\n  });\n}\n\nconst nodeByCode = (code) => $context.$nodes[code] || new Object();\n\nconst httpStatus = (n) => {\n  if (!n) return null;\n  const candidates = [\n    n.$output && n.$output.responseStatus,\n    n.$output && n.$output.output && n.$output.output.responseStatus,\n    n.$output && n.$output.result && n.$output.result.responseStatus,\n    n.responseStatus,\n    n.statusCode\n  ];\n  for (let i = 0; i < candidates.length; i++) {\n    const v = candidates[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '' && !isNaN(Number(v))) return Number(v);\n  }\n  return null;\n};\n\nconst responseBody = (n) => {\n  if (!n) return null;\n  return firstNonBlankLocal([\n    n.$output && n.$output.response,\n    n.$output && n.$output.output && n.$output.output.response,\n    n.$output && n.$output.result && n.$output.result.response\n  ]);\n};\n\nconst errorText = (n) => {\n  if (!n) return null;\n  const st = httpStatus(n);\n  const body = responseBody(n);\n  if (st && st >= 400) return 'HTTP ' + st + (body ? ': ' + body : '');\n  if (n.$error && n.$error.$info) return n.$error.$info;\n  if (n.$error && n.$error.info) return n.$error.info;\n  if (n.$error && n.$error.message) return n.$error.message;\n  if (n.$error && n.$error.$code) return n.$error.$code;\n  if (n.$output && n.$output.error) return n.$output.error;\n  return null;\n};\n\nconst statusText = (n) => n ? (n.$status || n.status || null) : null;\n\nconst isFailure = (n) => {\n  const stCode = httpStatus(n);\n  if (stCode && stCode >= 400) return true;\n  const err = errorText(n);\n  if (err) return true;\n  const st = statusText(n);\n  if (!st) return false;\n  const s = String(st).toUpperCase();\n  return s.indexOf('FAIL') >= 0 || s.indexOf('ERROR') >= 0 || /^4\\d\\d/.test(s) || /^5\\d\\d/.test(s);\n};\n\nconst rows = [];\nlet failures = 0;\nfor (let i = 0; i < operationMap.length; i++) {\n  const op = operationMap[i];\n  const n = nodeByCode(op.code);\n  const failed = isFailure(n);\n  if (failed) failures += 1;\n  rows.push({\n    managerType: op.type,\n    operation: (ctx.managerRecords[op.type] && ctx.managerRecords[op.type].exists) ? 'Updated existing record' : 'Created missing record',\n    status: failed ? 'Failed' : 'Submitted',\n    detail: errorText(n) || ''\n  });\n}\n\n(ctx.skippedItems || []).forEach(item => {\n  rows.push({\n    managerType: item.managerType,\n    operation: 'Skipped',\n    status: 'Skipped',\n    detail: item.reason || ''\n  });\n});\n\nlet msg = '';\nif (failures === 0) {\n  msg += `Manager update submitted successfully for the records marked as submitted.<br><br>`;\n} else if (failures === operationMap.length) {\n  msg += `The manager update could not be completed.<br><br>`;\n} else {\n  msg += `The manager update was partially completed. Please review the details below.<br><br>`;\n}\n\nmsg += `<b>Summary</b><br>`;\nmsg += `<b>Worker</b>: ${ctx.targetWorkerName || ''} (${ctx.targetWorkerPersonNumber})<br>`;\nmsg += `<b>New Manager</b>: ${ctx.newManagerName || ''} (${ctx.newManagerPersonNumber})<br>`;\nmsg += `<b>Lookup Date</b>: ${ctx.lookupEffectiveDate}<br>`;\nmsg += `<b>Update Effective Date</b>: ${req.effectiveDate}<br><br>`;\nmsg += `<b>Operation status</b><ul>`;\nfor (let i = 0; i < rows.length; i++) {\n  const r = rows[i];\n  msg += `<li><b>${r.managerType}</b>: ${r.operation} - ${r.status}`;\n  if (r.detail) msg += `<br>${String(r.detail).replace(/Bad Request/gi, '').replace(/[A-Z]{2,5}-\\d{3,}/g, '').trim()}`;\n  msg += `</li>`;\n}\nmsg += `</ul>`;\n\nreturn { message: msg, failures: failures, rows: rows };"
+          },
+          "outcomes": {
+            "success": "950000020"
+          },
+          "code": "FINAL_MANAGER_UPDATE_RESPONSE",
+          "id": "9000000000030",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Return Final Manager Update Status"
+          },
+          "outcomes": {},
+          "code": "RETURN_FINAL_MANAGER_UPDATE_STATUS",
+          "convergenceTargetId": "end",
+          "id": "9000000000031",
+          "inputs": [
+            {
+              "id": "9000000000031_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "{{$context.$nodes.FINAL_MANAGER_UPDATE_RESPONSE.$output.result.message}}"
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "Route Ora Message Hint"
+          },
+          "outcomes": {
+            "InitDisplay": "909000002",
+            "Summary": "909000003",
+            "InitActions": "909000004",
+            "InitSubtitle": "909000005",
+            "InitCommunications": "909000006",
+            "default": "970000001",
+            "InvokeAction": "950000010"
+          },
+          "code": "ROUTE_ORA_HINT_V3",
+          "id": "909000001",
+          "inputs": [
+            {
+              "id": "909000001_1",
+              "name": "caseExpression",
+              "type": "string",
+              "value": "{{$context.$app.$OraMessageHint}}"
+            }
+          ],
+          "type": "SWITCH"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_CARD"
+              ],
+              "enableActions": false,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "ShowInitDisplay"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "CS_INIT_DISPLAY",
+          "id": "909000002",
+          "inputs": [
+            {
+              "id": "909000002_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "You are the Reporting Line advisor in the Compass Steward HR Shared Services workspace. In 2 short sentences present a capability card that says: enter a worker number or name in Ask Oracle to view that worker's current reporting line and change it. Give one example such as: type a worker number like 955160008 or a name like Marcus Allister. Do not mention person id or assignment id. Output only the card content, no preamble."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "ShowInitSummary"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "CS_SUMMARY",
+          "id": "909000003",
+          "inputs": [
+            {
+              "id": "909000003_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "In no more than 50 words, state that the Compass Steward Reporting Line advisor is ready and that it updates a worker's line manager, time card manager, or reward manager, always confirming with the user before writing any change. Output only the sentence."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [],
+              "enableActions": true,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "ShowInitActions"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "CS_INIT_ACTIONS",
+          "id": "909000004",
+          "inputs": [
+            {
+              "id": "909000004_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Provide exactly one actionable insight for the Reporting Line advisor as JSON with fields: title set to Start a reporting line change, shortDescription set to Open a form to change a worker's Line Manager or Project Manager, actionText set to Start Reporting Line Change, followUpCommand, and priority set to true. Set followUpCommand to the exact string: ora.Invoke(\"startReportingChange\", \"startReportingChange\") . Output only the JSON object."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "GenerateSubTitle"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "CS_SUBTITLE",
+          "id": "909000005",
+          "inputs": [
+            {
+              "id": "909000005_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Output only this exact subtitle text and nothing else: Reporting Line change - provide the worker and effective date to begin."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "ShowInitCommunications"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "CS_INIT_COMMS",
+          "id": "909000006",
+          "inputs": [
+            {
+              "id": "909000006_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Output only this exact sentence and nothing else: No communications are required for this advisor."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "name": "Ask For Details"
+          },
+          "outcomes": {},
+          "code": "RETURN_ASK_DETAILS_CONV",
+          "id": "9000009001",
+          "inputs": [
+            {
+              "id": "9000009001_1",
+              "name": "message",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.crossQuestion}}"
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "If User Confirmed"
+          },
+          "outcomes": {
+            "true": "9000000000016",
+            "false": "950000015"
+          },
+          "code": "IF_USER_CONFIRMED_CONV",
+          "id": "9000009002",
+          "inputs": [
+            {
+              "id": "9000009002_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.isConfirmed === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Confirmation Prompt"
+          },
+          "outcomes": {},
+          "code": "RETURN_CONFIRM_PROMPT_CONV",
+          "id": "9000009003",
+          "inputs": [
+            {
+              "id": "9000009003_1",
+              "name": "message",
+              "type": "string",
+              "value": "Please review the proposed change. Reply confirm to proceed, or cancel to stop."
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "Build Roster Lookup Query",
+            "returnType": "object",
+            "sourceCode": "var asString = (v) => (v===null||v===undefined)?'':String(v).trim();\nvar parsed = '';\ntry { var pn = $context.$nodes.PARSE_MANAGER_UPDATE_REQUEST; parsed = (pn && pn.$output) ? asString(pn.$output.workerPersonNumber) : ''; } catch (e) { parsed = ''; }\nvar bare = '';\ntry { var dn = $context.$nodes.DETECT_BARE_WORKER_V7; bare = (dn && dn.$output && dn.$output.result) ? asString(dn.$output.result.message) : ''; } catch (e) { bare = ''; }\nvar typed = '';\ntry { typed = asString($context.$system.$inputMessage); } catch (e) { typed = ''; }\nvar raw = parsed || bare || typed;\nvar esc = raw.split(\"'\").join(\"''\");\nvar hasWs = /\\s/.test(raw); var hasDigit = /[0-9]/.test(raw);\nvar q = (!hasWs && hasDigit) ? (\"PersonNumber='\" + esc + \"'\") : (\"UPPER(DisplayName)=UPPER('\" + esc + \"')\");\nreturn { targetWorkerQuery: raw ? q : null, lookupText: raw };"
+          },
+          "outcomes": {
+            "success": "950000003"
+          },
+          "code": "BUILD_ROSTER_LOOKUP",
+          "id": "950000005",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"output\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+            "functionName": "get_worker_manager_update_details",
+            "name": "Get Worker For Roster"
+          },
+          "outcomes": {
+            "success": "950000001"
+          },
+          "code": "GET_ROSTER_WORKER",
+          "id": "950000003",
+          "inputs": [
+            {
+              "id": "950000003_1",
+              "name": "workerQuery",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_ROSTER_LOOKUP.$output.result.targetWorkerQuery}}"
+            },
+            {
+              "id": "950000003_2",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$system.$currentDate}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Build Reporting Line Roster",
+            "returnType": "object",
+            "sourceCode": "const target = ($context.$nodes.GET_ROSTER_WORKER && $context.$nodes.GET_ROSTER_WORKER.$output) || new Object();\nconst asOf = $context.$system.$currentDate;\n\nconst itemsOf = (r) => (r && Array.isArray(r.items)) ? r.items : ((r && Array.isArray(r.Items)) ? r.Items : []);\nconst child = (o, p) => { if (!o) return []; const v = o[p]; if (Array.isArray(v)) return v; if (v && Array.isArray(v.items)) return v.items; return []; };\nconst fnb = (a) => { for (let i=0;i<a.length;i++){ const v=a[i]; if (v!==null&&v!==undefined&&String(v).trim()!=='') return v; } return null; };\nconst up = (v) => String(v===null||v===undefined?'':v).trim().toUpperCase();\nconst inRange = (d,s,e) => { d=String(d||''); s=String(s||''); e=String(e||''); if(!d) return true; if(s&&d<s) return false; if(e&&d>e) return false; return true; };\n\nconst nameOf = (p) => {\n  if (!p) return null;\n  const names = child(p, 'names'); let any=null, prim=null;\n  for (let i=0;i<names.length;i++){ const n=names[i]||new Object(); const dn=fnb([n.DisplayName,n.FullName,n.ListName,n.Name]); if(!dn) continue; if(!any) any=dn; if(!prim&&(n.PrimaryFlag===true||up(n.PrimaryFlag)==='TRUE'||up(n.PrimaryFlag)==='Y')) prim=dn; }\n  return fnb([p.DisplayName,p.PersonDisplayName,p.FullName,prim,any,p.PersonNumber]);\n};\n\nconst items = itemsOf(target);\nconst worker = items.length ? items[0] : null;\nconst rows = [];\nlet workerName = null, personNumber = null, personId = null, ambiguous = (items.length > 1);\n\nif (worker) {\n  workerName = nameOf(worker);\n  personNumber = fnb([worker.PersonNumber, worker.personNumber]);\n  personId = fnb([worker.PersonId, worker.personId]);\n  const rels = child(worker, 'workRelationships');\n  for (let r=0;r<rels.length;r++){\n    const rel = rels[r] || new Object();\n    const posId = fnb([rel.PeriodOfServiceId, rel.periodOfServiceId]);\n    const relActive = inRange(asOf, fnb([rel.StartDate, rel.EffectiveStartDate]), fnb([rel.TerminationDate, rel.ProjectedTerminationDate, '4712-12-31']));\n    const assigns = child(rel, 'assignments');\n    for (let a=0;a<assigns.length;a++){\n      const asg = assigns[a] || new Object();\n      const status = up(fnb([asg.AssignmentStatusType, asg.AssignmentStatusTypeCode, asg.AssignmentStatus]));\n      const statusActive = !status || status.indexOf('ACTIVE')>=0 || status==='ACT';\n      const asgInRange = inRange(asOf, asg.EffectiveStartDate, fnb([asg.EffectiveEndDate,'4712-12-31']));\n      const latest = !asg.EffectiveLatestChange || up(asg.EffectiveLatestChange)==='Y' || up(asg.EffectiveLatestChange)==='TRUE';\n      if (!(relActive && statusActive && asgInRange && latest)) continue;\n      const asgId = fnb([asg.AssignmentId, asg.assignmentId]);\n      const asgNum = fnb([asg.AssignmentNumber, asg.AssignmentName]);\n      const bu = fnb([asg.BusinessUnitName, asg.BusinessUnit, asg.BusinessUnitId, 'Not available']);\n      const le = fnb([asg.LegalEmployerName, asg.LegalEntityName, asg.LegalEmployer, 'Not available']);\n      const mgrs = child(asg, 'managers');\n      const byType = new Object();\n      for (let m=0;m<mgrs.length;m++){\n        const mg = mgrs[m] || new Object();\n        const mt = up(mg.ManagerType);\n        if (mt !== 'LINE_MANAGER' && mt !== 'PROJECT_MANAGER') continue; // enabled types on this tenant\n        if (!inRange(asOf, mg.EffectiveStartDate, fnb([mg.EffectiveEndDate,'4712-12-31']))) continue;\n        byType[mt] = {\n          managerType: mt,\n          currentManagerName: fnb([mg.ManagerName, mg.ManagerDisplayName, mg.ManagerPersonName, mg.ManagerAssignmentNumber, 'Not currently assigned']),\n          currentAssignmentSupervisorId: fnb([mg.AssignmentSupervisorId, mg.assignmentSupervisorId]),\n          currentManagerAssignmentNumber: fnb([mg.ManagerAssignmentNumber, mg.managerAssignmentNumber]),\n          effectiveFrom: fnb([mg.EffectiveStartDate, 'Not available'])\n        };\n      }\n      // one roster row per active assignment; carry Line + Project sub-records\n      rows.push({\n        assignmentNumber: asgNum,\n        assignmentId: asgId,\n        periodOfServiceId: posId,\n        businessUnit: bu,\n        legalEmployer: le,\n        line: byType.LINE_MANAGER || { managerType:'LINE_MANAGER', currentManagerName:'Not currently assigned', currentAssignmentSupervisorId:null, currentManagerAssignmentNumber:null, effectiveFrom:'Not available' },\n        project: byType.PROJECT_MANAGER || null\n      });\n    }\n  }\n}\n\nlet actionCommand = null;\nif (worker && !ambiguous && rows.length) {\n  const r0 = rows[0];\n  const apayload = {\n    action: 'startReportingChange',\n    personId: personId,\n    periodOfServiceId: r0.periodOfServiceId,\n    assignmentId: r0.assignmentId,\n    workerName: workerName,\n    workerNumber: personNumber,\n    currentLineManager: r0.line.currentManagerName,\n    currentProjectManager: r0.project ? r0.project.currentManagerName : null,\n    currentAssignmentSupervisorId: r0.line.currentAssignmentSupervisorId,\n    currentManagerAssignmentNumber: r0.line.currentManagerAssignmentNumber\n  };\n  let pj = '';\n  try { pj = JSON.stringify(apayload); } catch (e) { const fb = new Object(); fb.action = 'startReportingChange'; pj = JSON.stringify(fb); }\n  actionCommand = 'ora.Invoke(\"startReportingChange\", ' + JSON.stringify(pj) + ')';\n}\n\nconst card = new Object();\ncard.patternId = 'cardWidget';\ncard.description = 'Current reporting line details for the worker.';\nconst cprops = new Object();\nconst NL = String.fromCharCode(10);\nif (!worker) {\n  card.title = 'Worker not found';\n  cprops.subject = 'Worker not found';\n  cprops.summary = 'No worker matched that entry. Re-enter the worker number or the exact full name.';\n  cprops.badgeText = 'Not found';\n  cprops.variant = 'warning';\n} else if (ambiguous) {\n  card.title = 'Multiple workers matched';\n  cprops.subject = 'Multiple workers matched';\n  cprops.summary = 'More than one worker matched. Re-enter using the exact worker number.';\n  cprops.badgeText = 'Ambiguous';\n  cprops.variant = 'warning';\n} else {\n  card.title = workerName;\n  cprops.subject = workerName;\n  let lines = 'Worker Number: ' + (personNumber || 'Not available');\n  if (rows.length) {\n    lines = lines + NL + 'Business Unit: ' + (rows[0].businessUnit || 'Not available');\n    lines = lines + NL + 'Line Manager: ' + (rows[0].line.currentManagerName || 'Not currently assigned');\n    if (rows[0].project) { lines = lines + NL + 'Project Manager: ' + (rows[0].project.currentManagerName || 'Not currently assigned'); }\n  }\n  cprops.summary = lines;\n  if (actionCommand) {\n    const link = new Object();\n    link.text = 'Start Reporting Line Change';\n    link.action = actionCommand;\n    cprops.link = link;\n  }\n}\ncard.properties = cprops;\n\nconst result = {\n  found: !!worker,\n  ambiguous: ambiguous,\n  workerName: workerName,\n  personNumber: personNumber,\n  personId: personId,\n  rowCount: rows.length,\n  actionCommand: actionCommand,\n  card: card,\n  rows: rows\n};\nreturn result;"
+          },
+          "outcomes": {
+            "success": "960000004"
+          },
+          "code": "BUILD_REPORTING_ROSTER",
+          "id": "950000001",
+          "inputs": [],
+          "outputSpecification": "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+          "type": "CODE"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_MULTIRECORD"
+              ],
+              "enableActions": true,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "Render Reporting Line Roster"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "RENDER_REPORTING_ROSTER",
+          "id": "950000002",
+          "inputs": [
+            {
+              "id": "950000002_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Roster data (JSON): {{$context.$nodes.BUILD_REPORTING_ROSTER.$output.result}}\n\nYou are the Reporting Line advisor. Render a multi record list, ONE RECORD PER assignment row in rows. If found is false, instead output one short record saying the worker was not found and to re-enter the worker number or name. If ambiguous is true, output one short record saying multiple workers matched and to re-enter using the exact worker number. For each assignment record show: a title with the worker name (workerName) and assignment number; and fields for Business Unit (businessUnit), Legal Employer (legalEmployer), Line Manager (line.currentManagerName) effective from line.effectiveFrom, and Project Manager only if project is present. Never display person id or assignment id text. For EACH record provide exactly one action with actionText Change Manager and a followUpCommand that calls ora.Invoke with two arguments: the string changeMgr, and a JSON string built from THIS row containing exactly these keys: personId set to result.personId, periodOfServiceId set to this row periodOfServiceId, assignmentId set to this row assignmentId, managerType set to LINE_MANAGER, currentAssignmentSupervisorId set to this row line.currentAssignmentSupervisorId, currentManagerName set to this row line.currentManagerName, and workerName set to result.workerName. Use the literal numeric and string values from the data, do not invent placeholders. Output only the records, no preamble."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "name": "Parse Ora Action Payload",
+            "returnType": "object",
+            "sourceCode": "var actionRaw = '';\ntry { actionRaw = $context.$app.$OraAction; } catch (e) { actionRaw = null; }\nvar hasRaw = !(actionRaw === null || actionRaw === undefined || String(actionRaw).trim() === '');\nif (!hasRaw) { try { actionRaw = $context.$system.$inputMessage; } catch (e) { actionRaw = null; } }\nvar verb = '';\nvar payload = {};\nvar parseErr = '';\n\nvar coerce = (v) => {\n  if (v === null || v === undefined) return null;\n  if (typeof v === 'object') return v;\n  var s = String(v).trim();\n  if (!s) return null;\n  try { return JSON.parse(s); } catch (e) { }\n  try { var u = JSON.parse('\"' + s + '\"'); var p2 = JSON.parse(u); if (p2 && typeof p2 === 'object') return p2; } catch (e2) { }\n  return { _raw: s };\n};\n\nvar obj = coerce(actionRaw);\nif (obj && typeof obj === 'object') {\n  verb = String(obj.verb || obj.name || obj.action || obj.command || '').trim();\n  var inner = obj.value || obj.payload || obj.data || obj.args || obj.arguments || null;\n  payload = coerce(inner) || {};\n  if (!verb && obj._raw) { verb = obj._raw; }\n  if ((!payload || Object.keys(payload).length === 0) && (obj.personId || obj.assignmentId || obj.worker || obj.newManager || obj.effectiveDate || obj.updateType || obj.formContext)) { payload = obj; }\n} else {\n  parseErr = 'No structured action payload was found.';\n}\n\n// hidden system field round-trips the write keys as a JSON string -> unwrap it\nif (payload && payload.formContext) {\n  var fc = coerce(payload.formContext);\n  if (fc && typeof fc === 'object') {\n    payload.personId = payload.personId || fc.personId;\n    payload.periodOfServiceId = payload.periodOfServiceId || fc.periodOfServiceId;\n    payload.assignmentId = payload.assignmentId || fc.assignmentId;\n    payload.currentAssignmentSupervisorId = payload.currentAssignmentSupervisorId || fc.currentAssignmentSupervisorId;\n    payload.currentManagerAssignmentNumber = payload.currentManagerAssignmentNumber || fc.currentManagerAssignmentNumber;\n    payload.currentManagerName = payload.currentManagerName || fc.currentManagerName;\n    payload.workerName = payload.workerName || fc.workerName;\n    payload.workerNumber = payload.workerNumber || fc.workerNumber;\n  }\n}\n\n// verb may itself be a quoted invoke like startReportingChange or submitReportingChange\nvar v = String(verb || '').trim();\nif (v.indexOf('submitReportingChange') >= 0) v = 'submitReportingChange';\nelse if (v.indexOf('startReportingChange') >= 0) v = 'startReportingChange';\nelse if (v.indexOf('confirmWrite') >= 0) v = 'confirmWrite';\nelse if (v.indexOf('changeMgr') >= 0) v = 'changeMgr';\nelse v = '';\n\n// a recordWidget auto-submit arrives VERBLESS: flat field values (and/or formContext token)\nif (!v) {\n  var whole = '';\n  try { whole = JSON.stringify(obj); } catch (e) { whole = ''; }\n  var formish = payload && (payload.newManager !== undefined || payload.effectiveDate !== undefined || payload.updateType !== undefined || payload.formContext !== undefined);\n  if (whole.indexOf('submitReportingChange') >= 0 || formish) { v = 'submitReportingChange'; }\n}\n\nvar ut = String((payload && (payload.managerType || payload.updateType)) || 'LINE_MANAGER');\nvar utNorm = (ut.toLowerCase().indexOf('project') >= 0) ? 'PROJECT_MANAGER' : 'LINE_MANAGER';\n\nvar out = {\n  verb: v || 'changeMgr',\n  personId: payload.personId || null,\n  periodOfServiceId: payload.periodOfServiceId || null,\n  assignmentId: payload.assignmentId || null,\n  managerType: utNorm,\n  currentAssignmentSupervisorId: payload.currentAssignmentSupervisorId || null,\n  currentManagerAssignmentNumber: payload.currentManagerAssignmentNumber || null,\n  currentManagerName: payload.currentManagerName || payload.currentLineManager || null,\n  currentProjectManager: payload.currentProjectManager || null,\n  workerName: payload.workerName || null,\n  workerNumber: payload.workerNumber || payload.worker || null,\n  newManager: payload.newManager || null,\n  effectiveDate: payload.effectiveDate || null,\n  parseError: parseErr\n};\nreturn out;"
+          },
+          "outcomes": {
+            "success": "950000014"
+          },
+          "code": "PARSE_ORA_ACTION",
+          "id": "950000010",
+          "inputs": [],
+          "outputSpecification": "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Route Parsed Action"
+          },
+          "outcomes": {
+            "changeMgr": "950000017",
+            "confirmWrite": "9000000000001",
+            "default": "950000017",
+            "startReportingChange": "960000005",
+            "submitReportingChange": "9000000000001"
+          },
+          "code": "ROUTE_PARSED_ACTION",
+          "id": "950000014",
+          "inputs": [
+            {
+              "id": "950000014_1",
+              "name": "caseExpression",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_ORA_ACTION.$output.result.verb}}"
+            }
+          ],
+          "type": "SWITCH"
+        },
+        {
+          "metadata": {
+            "name": "Ask For New Manager"
+          },
+          "outcomes": {},
+          "code": "RETURN_ASK_NEW_MANAGER",
+          "id": "950000017",
+          "inputs": [
+            {
+              "id": "950000017_1",
+              "name": "message",
+              "type": "string",
+              "value": "You are changing the Line Manager for {{$context.$nodes.PARSE_ORA_ACTION.$output.result.workerName}}. The current Line Manager is {{$context.$nodes.PARSE_ORA_ACTION.$output.result.currentManagerName}}. Please reply with the new manager (name or person number) and the effective date (or say today)."
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "If Worker Known But Manager Missing"
+          },
+          "outcomes": {
+            "true": "950000005",
+            "false": "9000009001"
+          },
+          "code": "IF_WORKER_KNOWN_MGR_MISSING",
+          "id": "950000016",
+          "inputs": [
+            {
+              "id": "950000016_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.intent === 'manager_update' && $context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.workerPersonNumber !== null && $context.$nodes.PARSE_MANAGER_UPDATE_REQUEST.$output.newManagerPersonNumber === null}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Validate Reporting Line Change",
+            "returnType": "object",
+            "sourceCode": "var ctxNode = $context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT;\nvar ctx = (ctxNode && ctxNode.$output && ctxNode.$output.result) ? ctxNode.$output.result : new Object();\nvar req = ctx.request || new Object();\nvar today = String($context.$system.$currentDate || '');\n\nvar hard = [];\nvar soft = [];\n\nvar asString = (v) => (v===null||v===undefined)?'':String(v).trim();\n\n// carry through any errors the context resolver already raised\nif (ctx.hasError === true && Array.isArray(ctx.errors)) { for (var i=0;i<ctx.errors.length;i++) hard.push(ctx.errors[i]); }\n\n// HARD 1: self-manager (new manager person must differ from worker person)\nvar workerPN = asString(ctx.targetWorkerPersonNumber);\nvar newMgrPN = asString(ctx.newManagerPersonNumber);\nif (workerPN && newMgrPN && workerPN === newMgrPN) {\n  hard.push('A worker cannot be their own manager. The proposed manager is the same person as the worker.');\n}\n\n// HARD 2: direct supervisor cycle (new manager already reports to this worker)\n// the proposed manager assignment number derives from the manager person; the worker currently appears\n// as the proposed manager's own line manager -> cycle. We check the new manager assignment number against\n// the worker assignment number.\nvar workerAsgNum = asString(ctx.targetAssignmentNumber);\nvar newMgrAsgNum = asString(ctx.newManagerAssignmentNumber);\nif (workerAsgNum && newMgrAsgNum && workerAsgNum === newMgrAsgNum) {\n  hard.push('The proposed manager assignment is the same as the worker assignment, which would create a direct reporting cycle.');\n}\n\n// HARD 3: effective date floor (>= today minus 30 day retro window)\nvar eff = asString(req.effectiveDate);\nif (!eff) {\n  hard.push('An effective date is required.');\n} else {\n  // YYYY-MM-DD lexical compare is valid for ISO dates; compute 30-day retro floor\n  var d = new Date(eff + 'T00:00:00Z');\n  var t = new Date(today + 'T00:00:00Z');\n  if (isFinite(d.getTime()) && isFinite(t.getTime())) {\n    var diffDays = Math.round((t.getTime() - d.getTime()) / 86400000);\n    if (diffDays > 30) hard.push('The effective date ' + eff + ' is more than 30 days in the past. Choose a date within the last 30 days or a future date.');\n  }\n}\n\n// HARD 4: manager active on the effective date — context already flags inactive existing records;\n// also require the new manager to have been resolved to an assignment number\nif (!newMgrAsgNum) hard.push('The proposed manager could not be resolved to an active assignment.');\n\n// SOFT 1: cross business unit / legal employer (compare via update items if present)\nvar items = Array.isArray(ctx.updateItems) ? ctx.updateItems : [];\n// (BU/LE comparison is informational only here; flag a generic cross-BU note when the new manager\n// person number differs and BU data is unavailable — surfaced as a soft warning, not a block.)\n\n// SOFT 2: no-op (proposed manager equals the current manager)\nfor (var k=0;k<items.length;k++){\n  var it = items[k] || new Object();\n  if (asString(it.currentManagerAssignmentNumber) && asString(it.currentManagerAssignmentNumber) === newMgrAsgNum) {\n    soft.push('The proposed manager is already the current ' + asString(it.managerType) + '. This change would be a no-op.');\n  }\n}\n\nvar cobj = new Object();\ncobj.action = 'confirmWrite';\ncobj.workerPersonNumber = ctx.targetWorkerPersonNumber || null;\ncobj.newManagerPersonNumber = ctx.newManagerPersonNumber || null;\ncobj.updateType = (req.updateType || 'LINE_MANAGER');\ncobj.workerName = ctx.targetWorkerName || null;\ncobj.newManagerName = ctx.newManagerName || null;\ncobj.effectiveDate = req.effectiveDate || null;\nvar cstr = '';\ntry { cstr = JSON.stringify(cobj); } catch (e) { cstr = ''; }\nvar confirmCommand = 'ora.Invoke(\"confirmWrite\", ' + JSON.stringify(cstr) + ')';\n\nvar decision = hard.length > 0 ? 'REFUSE' : 'PROCEED';\nvar vout = new Object();\nvout.decision = decision;\nvout.hardFailures = hard;\nvout.softWarnings = soft;\nvout.workerName = ctx.targetWorkerName || null;\nvout.newManagerName = ctx.newManagerName || null;\nvout.effectiveDate = req.effectiveDate || null;\nvout.confirmCommand = confirmCommand;\nvar curName = '';\nfor (var ci = 0; ci < items.length; ci++) {\n  var cit = items[ci];\n  if (!cit) { continue; }\n  var nm = asString(cit.currentManagerName) || asString(cit.currentManagerAssignmentNumber);\n  if (nm) { curName = nm; break; }\n}\nvar ccard = new Object();\nccard.title = 'Confirm Line Manager Change';\nccard.patternId = 'cardWidget';\nccard.description = 'Review the proposed change before it is written.';\nvar cprops2 = new Object();\ncprops2.subject = 'Confirm Line Manager Change';\nvar NL2 = String.fromCharCode(10);\nvar ARROW = String.fromCharCode(8594);\nvar csum = 'Worker: ' + (asString(ctx.targetWorkerName) || 'Not resolved');\ncsum = csum + NL2 + 'Line Manager: ' + (curName || 'Not currently assigned') + ' ' + ARROW + ' ' + (asString(ctx.newManagerName) || 'Proposed manager');\ncsum = csum + NL2 + 'Effective Date: ' + (asString(req.effectiveDate) || 'Not set');\nfor (var si = 0; si < soft.length; si++) { csum = csum + NL2 + 'Caution: ' + soft[si]; }\ncprops2.summary = csum;\ncprops2.badgeText = 'Needs confirmation';\ncprops2.variant = 'warning';\nvar clink = new Object();\nclink.text = 'Confirm Change';\nclink.action = confirmCommand;\ncprops2.link = clink;\nccard.properties = cprops2;\nvout.confirmCard = ccard;\nreturn vout;"
+          },
+          "outcomes": {
+            "success": "950000012"
+          },
+          "code": "VALIDATE_REPORTING_CHANGE",
+          "id": "950000011",
+          "inputs": [],
+          "outputSpecification": "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "If Validation Failed"
+          },
+          "outcomes": {
+            "true": "950000013",
+            "false": "9000000000011"
+          },
+          "code": "IF_VALIDATION_FAILED",
+          "id": "950000012",
+          "inputs": [
+            {
+              "id": "950000012_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.VALIDATE_REPORTING_CHANGE.$output.result.decision === 'REFUSE'}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_CARD"
+              ],
+              "enableActions": false,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "Render Validation Error"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "RENDER_VALIDATION_ERROR",
+          "id": "950000013",
+          "inputs": [
+            {
+              "id": "950000013_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Validation result (JSON): {{$context.$nodes.VALIDATE_REPORTING_CHANGE.$output.result}}\n\nYou are the Reporting Line advisor. The change cannot proceed. Output a short card titled Change Not Allowed that lists each item in hardFailures as a reason, and if softWarnings is non empty list them as cautions. Tell the user how to correct it. Do not show person id or assignment id. Output only the card content, no preamble."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_CHANGE_LIST"
+              ],
+              "enableActions": true,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "Render Change Confirmation"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "RENDER_CHANGE_CONFIRM",
+          "id": "950000015",
+          "inputs": [
+            {
+              "id": "950000015_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Confirm card JSON: {{$context.$nodes.VALIDATE_REPORTING_CHANGE.$output.result.confirmCard}}\nConfirm command: {{$context.$nodes.VALIDATE_REPORTING_CHANGE.$output.result.confirmCommand}}\n\nYou are the Reporting Line advisor. Output three things in order. First, the confirm card JSON above wrapped in your standard oraInfoDisplay tag envelope with a unique key attribute, reproduced exactly as provided with the same keys, values, and value types. Second, one sentence telling the user to review the proposed change and that they may reply confirm to proceed or cancel to stop. Third, one actionable insight in your standard oraInsight format with title Confirm Line Manager Change, a one-line shortDescription naming the new manager and effective date from the card, actionText Confirm Change, priority true, and followUpCommand set EXACTLY to the Confirm command string above, copied character for character. Never display person ids, assignment ids, or any numeric internal identifiers. Output nothing else."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_CARD"
+              ],
+              "enableActions": false,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "Render Update Receipt"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "RENDER_UPDATE_RECEIPT",
+          "id": "950000020",
+          "inputs": [
+            {
+              "id": "950000020_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Update result (JSON): {{$context.$nodes.FINAL_MANAGER_UPDATE_RESPONSE.$output.result}}\nContext (JSON): {{$context.$nodes.BUILD_MANAGER_UPDATE_CONTEXT.$output.result}}\n\nYou are the Reporting Line advisor. Output a short confirmation card titled Reporting Line Updated stating that the Line Manager for the worker (use the worker name) is now the new manager (use the new manager name) effective from the effective date. If the result indicates an error, instead state that the update did not complete and summarize the message. Never show person id or assignment id. Output only the card content, no preamble."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_RECORD"
+              ],
+              "enableActions": true,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "Render Reporting Line Form"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "RENDER_REPORTING_FORM",
+          "id": "960000001",
+          "inputs": [
+            {
+              "id": "960000001_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Form widget JSON: {{$context.$nodes.BUILD_REPORTING_FORM.$output.result}}\n\nReturn the form widget JSON above wrapped in your standard oraInfoDisplay tag envelope with a unique key attribute, exactly the same envelope you normally use when emitting widget JSON output. Inside the envelope, reproduce the JSON exactly as provided: the same keys, the same values, and the same value types. The formContext field value must remain one single JSON string, never expanded into an object. Keep both the properties key and the config key. Do not add a description key or any other key. Do not add preamble, commentary, markdown, or code fences. Output only the wrapped widget."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "aiAppOutputSpecification": {
+            "dataDisplay": {
+              "layouts": [
+                "ORA_LAYOUT_CARD"
+              ],
+              "enableActions": true,
+              "enableCommunications": false
+            }
+          },
+          "metadata": {
+            "modelConfiguration": {
+              "modelProperties": {
+                "k": 0,
+                "max_tokens": 32000,
+                "p": 0.75
+              },
+              "code": "ORA_LLM_PREMIUM",
+              "model": "OPEN_AI_GPT_4_1_MINI",
+              "modelName": "GPT-4.1 mini",
+              "provider": "CERT_PREMIUM"
+            },
+            "name": "Render Worker Context"
+          },
+          "outcomes": {
+            "success": "end"
+          },
+          "code": "RENDER_WORKER_CONTEXT",
+          "id": "960000004",
+          "inputs": [
+            {
+              "id": "960000004_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "Card widget JSON: {{$context.$nodes.BUILD_REPORTING_ROSTER.$output.result.card}}\n\nReturn the card widget JSON above wrapped in your standard oraInfoDisplay tag envelope with a unique key attribute, exactly the same envelope you normally use when emitting widget JSON output. Inside the envelope, reproduce the JSON exactly as provided: the same keys, the same values, and the same value types. If the JSON contains a link, the link action value must remain the complete command string exactly as given, never shortened, renamed, or reformatted. Do not add a key, remove a key, or rename a key. Do not add preamble, commentary, markdown, or code fences. Output only the wrapped widget."
+            }
+          ],
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "name": "Detect Bare Worker Lookup",
+            "returnType": "object",
+            "sourceCode": "var msg = '';\ntry { msg = String($context.$system.$inputMessage || '').trim(); } catch (e) { msg = ''; }\n\nvar lower = msg.toLowerCase();\n\n// Tokens that signal a CONVERSATIONAL change request (must fall through to PARSE), not a bare lookup.\nvar changeWords = ['manager','line','project','reward','time card','timecard','timesheet','update','change',\n                   'set ','assign','move','transfer','effective','confirm','yes','proceed','go ahead',\n                   'approve','approved','do it','to ','new '];\nvar hasChangeWord = false;\nfor (var i = 0; i < changeWords.length; i++) {\n  if (lower.indexOf(changeWords[i]) >= 0) { hasChangeWord = true; break; }\n}\n\n// Count word-ish tokens (a bare lookup is a single number, or a short 1-3 word name).\nvar parts = msg.split(/\\s+/).filter(s => s.length > 0);\n\n// A pure person number: all digits (allow a leading zero-padded id).\nvar isPureNumber = /^[0-9]{1,15}$/.test(msg);\n\n// A short plain name: 1-3 alphabetic tokens, no digits, no change words.\nvar isPlainName = parts.length >= 1 && parts.length <= 3 &&\n                  /^[A-Za-z][A-Za-z'.\\-]*(\\s+[A-Za-z][A-Za-z'.\\-]*){0,2}$/.test(msg);\n\nvar isBareWorker = (isPureNumber || (isPlainName && !hasChangeWord)) && !hasChangeWord;\n// numbers always win even if a stray change word matched a substring (defensive)\nif (isPureNumber) isBareWorker = true;\n\nreturn { isBareWorker: isBareWorker, message: msg };"
+          },
+          "outcomes": {
+            "success": "970000002"
+          },
+          "code": "DETECT_BARE_WORKER_V7",
+          "id": "970000001",
+          "inputs": [],
+          "outputSpecification": "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "If Bare Worker Lookup"
+          },
+          "outcomes": {
+            "true": "950000005",
+            "false": "9000000000001"
+          },
+          "code": "IF_BARE_WORKER_V7",
+          "id": "970000002",
+          "inputs": [
+            {
+              "id": "970000002_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.DETECT_BARE_WORKER_V7.$output.result.isBareWorker === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Build Reporting Line Form",
+            "returnType": "object",
+            "sourceCode": "const s = (v) => (v === null || v === undefined) ? '' : String(v).trim();\nlet p = null;\ntry { const n = $context.$nodes.PARSE_ORA_ACTION; p = (n && n.$output && n.$output.result) ? n.$output.result : null; } catch (e) { p = null; }\nconst pick = (k) => (p === null ? '' : s(p[k]));\nconst rawv = (k) => (p === null ? null : (p[k] === undefined ? null : p[k]));\nlet today = '';\ntry { today = s($context.$system.$currentDate); } catch (e) { today = ''; }\nconst workerVal = pick('workerNumber') || pick('workerName');\nconst ctxObj = new Object();\nctxObj.action = 'submitReportingChange';\nctxObj.personId = rawv('personId');\nctxObj.periodOfServiceId = rawv('periodOfServiceId');\nctxObj.assignmentId = rawv('assignmentId');\nctxObj.currentAssignmentSupervisorId = rawv('currentAssignmentSupervisorId');\nctxObj.currentManagerAssignmentNumber = rawv('currentManagerAssignmentNumber');\nctxObj.currentManagerName = rawv('currentManagerName');\nctxObj.workerName = rawv('workerName');\nctxObj.workerNumber = rawv('workerNumber');\nlet ctxStr = '';\ntry { ctxStr = JSON.stringify(ctxObj); } catch (e) { ctxStr = ''; }\nconst fields = [];\nconst f1 = new Object();\nf1.id = 'worker';\nf1.type = 'text';\nf1.label = 'Worker';\nf1.value = workerVal;\nfields.push(f1);\nconst o1 = new Object();\no1.value = 'Line Manager';\no1.label = 'Line Manager';\nconst o2 = new Object();\no2.value = 'Project Manager';\no2.label = 'Project Manager';\nconst opts = [];\nopts.push(o1);\nopts.push(o2);\nconst f2 = new Object();\nf2.id = 'updateType';\nf2.type = 'select';\nf2.label = 'Update Type';\nf2.value = 'Line Manager';\nf2.options = opts;\nfields.push(f2);\nconst f3 = new Object();\nf3.id = 'newManager';\nf3.type = 'text';\nf3.label = 'New Manager';\nf3.value = '';\nfields.push(f3);\nconst f4 = new Object();\nf4.id = 'effectiveDate';\nf4.type = 'date';\nf4.label = 'Effective Date';\nf4.value = today;\nfields.push(f4);\nconst f5 = new Object();\nf5.id = 'formContext';\nf5.type = 'system';\nf5.label = 'Context';\nf5.value = ctxStr;\nfields.push(f5);\nconst props = new Object();\nprops.id = 'submitReportingChange';\nprops.readOnly = false;\nprops.fields = fields;\nconst widget = new Object();\nwidget.title = 'Reporting Line Change';\nwidget.patternId = 'recordWidget';\nwidget.properties = props;\nwidget.config = props;\nreturn widget;"
+          },
+          "outcomes": {
+            "success": "960000001"
+          },
+          "code": "BUILD_REPORTING_FORM",
+          "id": "960000005",
+          "inputs": [],
+          "outputSpecification": "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+          "type": "CODE"
+        }
+      ],
+      "rootNode": "start",
+      "variables": [
+        {
+          "id": "9000000001001",
+          "name": "vManagerUpdateRequest",
+          "scope": "JOB",
+          "type": "object"
+        }
+      ],
+      "errorHandlers": []
+    },
+    "jsonSchemaName": "Workflow.spec",
+    "jsonSchemaVersion": "1",
+    "inputs": [],
+    "outputSpecification": "",
+    "agentsValueMappings": [],
+    "modelConfiguration": null,
+    "humanApprovalFlag": true,
+    "waitFlag": false,
+    "triggers": [
+      {
+        "type": "REST",
+        "inputs": []
+      }
+    ],
+    "costSavings": 0,
+    "timeSavings": 10,
+    "chatExpTPFileUploadEnabledFlag": false,
+    "chatExpThirdPartyDetails": [],
+    "policyIds": []
+  },
+  "dependencies": {
+    "boFunctionNodes": [
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Gets worker details by person number or exact display name with names, work relationships, assignments, and managers for HRSS manager update processing.",
+              "id": 1,
+              "isNew": true,
+              "name": "get_worker_manager_update_details",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workerQuery"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}&q={workerQuery}&expand=names,workRelationships.assignments.managers&onlyData=false",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [
+                {
+                  "query": {},
+                  "description": "Fetch worker details for manager update processing."
+                }
+              ],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/latest/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT Manager Update Worker Details",
+        "Name": "NTT Manager Update Worker Details",
+        "Description": "Worker lookup for NTT HRSS manager updates, including names, work relationships, active primary assignment, and manager rows.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:04.990+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Gets worker details by person number or exact display name with names, work relationships, assignments, and managers for HRSS manager update processing.",
+              "id": 1,
+              "isNew": true,
+              "name": "get_worker_manager_update_details",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workerQuery"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}&q={workerQuery}&expand=names,workRelationships.assignments.managers&onlyData=false",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [
+                {
+                  "query": {},
+                  "description": "Fetch worker details for manager update processing."
+                }
+              ],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/latest/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT Manager Update Worker Details",
+        "Name": "NTT Manager Update Worker Details",
+        "Description": "Worker lookup for NTT HRSS manager updates, including names, work relationships, active primary assignment, and manager rows.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:04.990+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Gets worker details by person number or exact display name with names, work relationships, assignments, and managers for HRSS manager update processing.",
+              "id": 1,
+              "isNew": true,
+              "name": "get_worker_manager_update_details",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workerQuery"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}&q={workerQuery}&expand=names,workRelationships.assignments.managers&onlyData=false",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [
+                {
+                  "query": {},
+                  "description": "Fetch worker details for manager update processing."
+                }
+              ],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/latest/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT Manager Update Worker Details",
+        "Name": "NTT Manager Update Worker Details",
+        "Description": "Worker lookup for NTT HRSS manager updates, including names, work relationships, active primary assignment, and manager rows.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:04.990+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Updates an existing assignment manager record for the active primary worker assignment.",
+              "id": 1,
+              "isNew": true,
+              "name": "update_assignment_manager",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 3,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Managers resource hash key resolved from the managers collection link.",
+                  "id": 4,
+                  "isToken": true,
+                  "name": "managersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 5,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager update.",
+                  "id": 6,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers/{managersUniqID}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Creates an assignment manager record for the active primary worker assignment when supported by the workflow.",
+              "id": 2,
+              "isNew": true,
+              "name": "create_assignment_manager",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 11,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 12,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 13,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 14,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager creation.",
+                  "id": 15,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/11.13.18.05/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT HCM Assignment Managers",
+        "Name": "NTT HCM Assignment Managers",
+        "Description": "Patch and create assignment manager records for the active primary assignment using href-derived or generated opaque REST keys.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:05.351+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Updates an existing assignment manager record for the active primary worker assignment.",
+              "id": 1,
+              "isNew": true,
+              "name": "update_assignment_manager",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 3,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Managers resource hash key resolved from the managers collection link.",
+                  "id": 4,
+                  "isToken": true,
+                  "name": "managersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 5,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager update.",
+                  "id": 6,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers/{managersUniqID}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Creates an assignment manager record for the active primary worker assignment when supported by the workflow.",
+              "id": 2,
+              "isNew": true,
+              "name": "create_assignment_manager",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 11,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 12,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 13,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 14,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager creation.",
+                  "id": 15,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/11.13.18.05/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT HCM Assignment Managers",
+        "Name": "NTT HCM Assignment Managers",
+        "Description": "Patch and create assignment manager records for the active primary assignment using href-derived or generated opaque REST keys.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:05.351+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Updates an existing assignment manager record for the active primary worker assignment.",
+              "id": 1,
+              "isNew": true,
+              "name": "update_assignment_manager",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 3,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Managers resource hash key resolved from the managers collection link.",
+                  "id": 4,
+                  "isToken": true,
+                  "name": "managersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 5,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager update.",
+                  "id": 6,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers/{managersUniqID}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Creates an assignment manager record for the active primary worker assignment when supported by the workflow.",
+              "id": 2,
+              "isNew": true,
+              "name": "create_assignment_manager",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 11,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 12,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 13,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 14,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager creation.",
+                  "id": 15,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/11.13.18.05/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT HCM Assignment Managers",
+        "Name": "NTT HCM Assignment Managers",
+        "Description": "Patch and create assignment manager records for the active primary assignment using href-derived or generated opaque REST keys.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:05.351+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Updates an existing assignment manager record for the active primary worker assignment.",
+              "id": 1,
+              "isNew": true,
+              "name": "update_assignment_manager",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 3,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Managers resource hash key resolved from the managers collection link.",
+                  "id": 4,
+                  "isToken": true,
+                  "name": "managersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 5,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager update.",
+                  "id": 6,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers/{managersUniqID}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Creates an assignment manager record for the active primary worker assignment when supported by the workflow.",
+              "id": 2,
+              "isNew": true,
+              "name": "create_assignment_manager",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 11,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 12,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 13,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 14,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager creation.",
+                  "id": 15,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/11.13.18.05/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT HCM Assignment Managers",
+        "Name": "NTT HCM Assignment Managers",
+        "Description": "Patch and create assignment manager records for the active primary assignment using href-derived or generated opaque REST keys.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:05.351+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Updates an existing assignment manager record for the active primary worker assignment.",
+              "id": 1,
+              "isNew": true,
+              "name": "update_assignment_manager",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 3,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Managers resource hash key resolved from the managers collection link.",
+                  "id": 4,
+                  "isToken": true,
+                  "name": "managersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 5,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager update.",
+                  "id": 6,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers/{managersUniqID}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            },
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "9",
+                "Effective-Of": "RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{managerPayload}",
+              "description": "Creates an assignment manager record for the active primary worker assignment when supported by the workflow.",
+              "id": 2,
+              "isNew": true,
+              "name": "create_assignment_manager",
+              "operationType": "POST",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 11,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 12,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 13,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 14,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for manager creation.",
+                  "id": 15,
+                  "isToken": true,
+                  "name": "managerPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}/child/managers",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_ASSIGNMENT_MANAGERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/11.13.18.05/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT HCM Assignment Managers",
+        "Name": "NTT HCM Assignment Managers",
+        "Description": "Patch and create assignment manager records for the active primary assignment using href-derived or generated opaque REST keys.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:05.351+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Gets worker details by person number or exact display name with names, work relationships, assignments, and managers for HRSS manager update processing.",
+              "id": 1,
+              "isNew": true,
+              "name": "get_worker_manager_update_details",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workerQuery"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}&q={workerQuery}&expand=names,workRelationships.assignments.managers&onlyData=false",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [
+                {
+                  "query": {},
+                  "description": "Fetch worker details for manager update processing."
+                }
+              ],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "NTT_HCM_MANAGER_UPDATE_WORKERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/latest/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "NTT Manager Update Worker Details",
+        "Name": "NTT Manager Update Worker Details",
+        "Description": "Worker lookup for NTT HRSS manager updates, including names, work relationships, active primary assignment, and manager rows.",
+        "CreatedBy": "HCM_IMPL1",
+        "CreationDate": "2026-06-09T04:03:04.990+00:00"
+      }
+    ],
+    "agentNodes": [],
+    "workflowNodes": [],
+    "documentProcessorNodes": [],
+    "ragDocumentToolNodes": [],
+    "toolNodes": [],
+    "externalRestNodes": []
+  },
+  "WorkflowCode": "NTT_MANAGER_UPDATE_AGENT_HRSS",
+  "Name": "Compass Steward - Reporting Line",
+  "Description": "HRSS workflow agent for Oracle HCM manager updates. Supports Line Manager updates, Time Card Manager updates, and Reward Manager updates only when an existing Reward Manager row is present. [V9: bare-worker roster lookup binds typed value] [V10: deterministic recordWidget form on startReportingChange] [V11: self-identifying action payloads + verbatim actionCommand] [V12: preprocessor-safe form builder + full-command card action] [V13: oraInfoDisplay envelope on form echo] [V14: form submit wired to validate-confirm-write chain] [V15: de-braced validate/confirm/final + deterministic worker card] [V16: validate assign-then-return + escaped-payload parse] [V17: deterministic confirm leg + clean confirm card] [V18: person-number confirm payload + cardWidget confirm] [V19: plain numeric REST keys for the write (probe-proven)] [V20: ActionCode on write payload]",
+  "Family": "HCM",
+  "Product": "GLOBAL_HUMAN_RESOURCES",
+  "HiddenFlag": false,
+  "AiAppsCompatibleFlag": true,
+  "UseCaseId": "NA",
+  "SourceWorkflowId": null,
+  "AccessModifier": "public",
+  "StartQuestionOne": "Line manager update: provide worker name or number, proposed manager name or number, and effective date",
+  "StartQuestionTwo": "Time card manager update: provide worker name or number, proposed manager name or number, and effective date",
+  "StartQuestionThree": "Manager update: provide update type, worker name or number, proposed manager name or number, and effective date",
+  "FollowUpPromptEnabledFlag": false,
+  "FollowUpPrompt": "Based on the following conversion: $param.system_context.chat_history generate $param.system_context.number_of_follow_up_questions\nfollow up questions only while strictly adhering to the JSON Schema format mentioned below. Remove the ```json markdown from the output.\nHere is the JSON Schema format the output should adhere to:\n[{\"question\": \"<put first question generated here>\"}, {\"question\": \"<put second question generated here>\"}, {\"question\": \"<put third question generated here>\"}",
+  "Architecture": "data_pipeline",
+  "MaximumInteractions": null,
+  "StartAgentId": null,
+  "agents": [],
+  "agentMappings": [],
+  "partnerMetadata": {
+    "Description": "",
+    "Name": "NTT"
+  }
+}
