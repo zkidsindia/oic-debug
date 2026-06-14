@@ -1,0 +1,1294 @@
+﻿{
+    "Specification":  {
+                          "dataPipeline":  {
+                                               "pipelineNodes":  [
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "description":  "Start of data pipeline",
+                                                                                          "name":  "Start"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "1781028546853"
+                                                                                      },
+                                                                         "code":  "START",
+                                                                         "id":  "start",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "type":  "START"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "description":  "End of data pipeline",
+                                                                                          "name":  "End"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "END",
+                                                                         "id":  "end",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "type":  "END"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Parse Contract End Date Change Request"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000002"
+                                                                                      },
+                                                                         "code":  "PARSE_CONTRACT_END_REQUEST",
+                                                                         "id":  "9300000000001",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000001_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "You are an HRSS Contract End workflow intake agent.\n\nReference date: {{$context.$system.$currentDate}}\nOriginal user message: {{$context.$system.$inputMessage}}\nConversation so far (use to accumulate details already provided and to detect confirmation): {{$context.$system.$chatHistory}}\n\nSupported workflow goal only:\n- Update the projected contract end date for a contingent worker.\n\nThis workflow reverses the existing termination and adds a new termination with the updated dates on the contingent worker\u0027s work relationship.\n\nRequired inputs:\n- workerPersonNumber: the contingent worker identifier. Accept a worker person number or exact worker display name.\n- projectedEndDate: the new termination date in YYYY-MM-DD format. Do not default this unless the user explicitly provides a date.\n- notificationDate: the notification date of the change in YYYY-MM-DD format. Default to reference date (today) if not explicitly provided.\n- actionReason: the reason for the contract end. Must match one of the predefined values or be gathered from the user.\n\nAllowed required input fields: workerPersonNumber, projectedEndDate, notificationDate, actionReason.\nDo not request any other fields in missingFields or crossQuestion.\n\nExtraction rules:\n- FORM SUBMISSIONS: if the original user message contains an oraFormSubmit tag followed by a JSON array of id/value pairs, this is a submitted Contract End Update form. Read the values directly: the worker field is workerPersonNumber, the projectedEndDate field is projectedEndDate, the notificationDate field is notificationDate, and the actionReason field is actionReason. A numeric worker value is a person number; a non-numeric value is an exact display name. Ignore the formContext field. A submitted form is a fresh request, not a confirmation: it is NEVER unclear and NEVER unsupported â€” always set intent to exactly contract_end, set isConfirmed to false, set crossQuestion to null, and set readyToProceed true when all required fields are present.\n- CONFIRM ACTIONS: if the original user message is a JSON payload whose action value is confirmContractEnd, the user clicked Confirm on the change summary already shown. Set isConfirmed to true and readyToProceed to true, no matter what any field inside the payload says. Take the business field values from the payload fields of the same names when present, then from the conversation. Never ask a follow-up question for a confirmContractEnd payload.\n\n- Use the original user message and any additional user feedback together to build the latest request.\n- Interpret contract end, end contract, extend contract, update contract end date, projected end date, contract expiry, contract extension, and end date update as the supported contract_end intent.\n- Never invent person numbers or names. If the user gives a name, keep the exact name as provided in workerPersonNumber. If the user gives a person number, keep the person number as provided.\n- Dates must be normalized to YYYY-MM-DD using the reference date.\n- If the request is not about updating a contingent worker contract end date, set intent to unclear.\n\nMissing-details wording rule:\n- When readyToProceed is false because any required input is missing, crossQuestion must be exactly: Please provide the missing contract end details. Required: worker name or number, new projected end date, notification date, and action reason.\n- Do not add any other requested fields to crossQuestion.\n\nOutput JSON only:\n{\n  \"intent\": \"contract_end|unclear\",\n  \"workerPersonNumber\": \"string|null\",\n  \"projectedEndDate\": \"string|null\",\n  \"notificationDate\": \"string|null\",\n  \"actionReason\": \"string|null\",\n  \"readyToProceed\": true|false,\n  \"missingFields\": [\"field names\"],\n  \"crossQuestion\": \"string|null\",\n  \"summary\": \"short plain-English summary|null\",\n  \"isConfirmed\": false\n}\n\ncrossQuestion rules:\n- If intent is unclear, ask one concise question asking whether they want to update a contingent worker contract end date.\n- If required information is missing, crossQuestion must use this exact text: Please provide the missing contract end details. Required: worker name or number, new projected end date, notification date, and action reason.\n- missingFields must contain only field names from this list: workerPersonNumber, projectedEndDate, notificationDate, actionReason.\n- Never ask for any fields outside that list. Include already captured fields only in summary, not in crossQuestion.\n- If validation fails, ask for the invalid field again and state the allowed values.\n- If readyToProceed is true, crossQuestion must be null.\n\nCONFIRMATION DETECTION (critical):\n- Also output a boolean field isConfirmed.\n- Use the full conversation above. Set isConfirmed to true ONLY IF a previous assistant turn already presented a confirmation summary of the exact change AND the user\u0027s latest message is an affirmative approval.\n- Otherwise set isConfirmed to false."
+                                                                                        }
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"$schema\": \"http://json-schema.org/draft-04/schema#\", \"type\": \"object\", \"additionalProperties\": false, \"properties\": {\"intent\": {\"type\": \"string\"}, \"workerPersonNumber\": {\"type\": [\"string\", \"null\"]}, \"projectedEndDate\": {\"type\": [\"string\", \"null\"]}, \"notificationDate\": {\"type\": [\"string\", \"null\"]}, \"actionReason\": {\"type\": [\"string\", \"null\"]}, \"readyToProceed\": {\"type\": \"boolean\"}, \"missingFields\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"crossQuestion\": {\"type\": [\"string\", \"null\"]}, \"summary\": {\"type\": [\"string\", \"null\"]}, \"isConfirmed\": {\"type\": \"boolean\"}}, \"required\": [\"intent\", \"workerPersonNumber\", \"projectedEndDate\", \"notificationDate\", \"actionReason\", \"readyToProceed\", \"missingFields\", \"crossQuestion\", \"summary\"]}",
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Set Contract End Date Change Request"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000003"
+                                                                                      },
+                                                                         "code":  "SET_CONTRACT_END_REQUEST",
+                                                                         "id":  "9300000000002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000002_1",
+                                                                                            "name":  "vContractEndRequest",
+                                                                                            "scope":  "JOB",
+                                                                                            "type":  "object",
+                                                                                            "value":  "{{$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "SET_FIELDS"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If Contract End Date Request Unclear"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "963000007",
+                                                                                          "false":  "9300000000005"
+                                                                                      },
+                                                                         "code":  "IF_CONTRACT_END_REQUEST_UNCLEAR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000003",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000003_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.intent !== \u0027contract_end\u0027}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Contract End Date Request Unclear"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_CONTRACT_END_REQUEST_UNCLEAR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000004",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000004_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.crossQuestion}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If Contract End Date Required Info Missing"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "963000008",
+                                                                                          "false":  "9300000000010"
+                                                                                      },
+                                                                         "code":  "IF_CONTRACT_END_REQUIRED_INFO_MISSING",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000005",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000005_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.intent === \"contract_end\" \u0026\u0026 ((!$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.workerPersonNumber) || (!$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.projectedEndDate) || (!$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.notificationDate) || (!$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.actionReason))}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Contract End Date Request Cancelled"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_CONTRACT_END_REQUEST_CANCELLED",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000007",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000007_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Working hours change request cancelled. No changes were made."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Contract End Date Worker Lookup Query",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var reqNode = $context.$nodes.PARSE_CONTRACT_END_REQUEST;\nvar req = new Object();\nif (reqNode \u0026\u0026 reqNode.$output) {\n  req = reqNode.$output;\n}\n\nvar asString = (v) =\u003e {\n  if (v === null || v === undefined) return \u0027\u0027;\n  return String(v).trim();\n};\n\nvar escapeQueryLiteral = (v) =\u003e {\n  return asString(v).split(\"\u0027\").join(\"\u0027\u0027\");\n};\n\nvar hasAnyWhitespace = (s) =\u003e {\n  var text = asString(s);\n  for (var i = 0; i \u003c text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c === 9 || c === 10 || c === 11 || c === 12 || c === 13 || c === 32) return true;\n  }\n  return false;\n};\n\nvar hasAnyDigit = (s) =\u003e {\n  var text = asString(s);\n  for (var i = 0; i \u003c text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c \u003e= 48 \u0026\u0026 c \u003c= 57) return true;\n  }\n  return false;\n};\n\nvar makeLookupResult = (query, mode, input) =\u003e {\n  var result = new Object();\n  result.query = query;\n  result.mode = mode;\n  result.input = input;\n  return result;\n};\n\nvar buildWorkerQuery = (inputValue) =\u003e {\n  var raw = asString(inputValue);\n  if (!raw) {\n    return makeLookupResult(null, \u0027MISSING\u0027, raw);\n  }\n  var escaped = escapeQueryLiteral(raw);\n  var personNumberLike = (!hasAnyWhitespace(raw) \u0026\u0026 hasAnyDigit(raw));\n  if (personNumberLike) {\n    return makeLookupResult(\"PersonNumber=\u0027\" + escaped + \"\u0027\", \u0027PERSON_NUMBER\u0027, raw);\n  }\n  return makeLookupResult(\"UPPER(DisplayName)=UPPER(\u0027\" + escaped + \"\u0027)\", \u0027DISPLAY_NAME\u0027, raw);\n};\n\nvar target = buildWorkerQuery(req.workerPersonNumber);\nvar errors = [];\nif (!target.query) errors.push(\u0027Worker name or number is required.\u0027);\n\nvar output = new Object();\noutput.hasError = errors.length \u003e 0;\noutput.errors = errors;\noutput.targetWorkerQuery = target.query;\noutput.targetLookupMode = target.mode;\noutput.targetLookupText = target.input;\nreturn output;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000011"
+                                                                                      },
+                                                                         "code":  "BUILD_CONTRACT_END_WORKER_LOOKUP_QUERY_SAFE_V1",
+                                                                         "id":  "9300000000010",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "businessObjectCode":  "HS2_HCM_CONTRACT_END_WORKERS",
+                                                                                          "functionName":  "get_worker_contract_lookup_ce_v1",
+                                                                                          "name":  "Get Contract End Date Target Worker"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000012"
+                                                                                      },
+                                                                         "code":  "GET_CONTRACT_END_TARGET_WORKER",
+                                                                         "id":  "9300000000011",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000011_1",
+                                                                                            "name":  "workerQuery",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_CONTRACT_END_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result.targetWorkerQuery}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9300000000011_2",
+                                                                                            "name":  "effectiveDate",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$system.$currentDate}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "outputSpecification":  "{}",
+                                                                         "type":  "BO_FUNCTION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Contract End Date Change Context",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const req = $context.$nodes.PARSE_CONTRACT_END_REQUEST.$output || {};\nconst targetResponse = $context.$nodes.GET_CONTRACT_END_TARGET_WORKER.$output || {};\nconst lookupDate = $context.$system.$currentDate;\nconst updateDate = req.projectedEndDate;\nconst notificationDate = req.notificationDate;\nconst actionReason = req.actionReason;\nconst lookupCtx = ($context.$nodes.BUILD_CONTRACT_END_WORKER_LOOKUP_QUERY_SAFE_V1 \u0026\u0026 $context.$nodes.BUILD_CONTRACT_END_WORKER_LOOKUP_QUERY_SAFE_V1.$output \u0026\u0026 $context.$nodes.BUILD_CONTRACT_END_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result) ? $context.$nodes.BUILD_CONTRACT_END_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result : {};\n\nconst itemsOf = (response) =\u003e {\n  if (!response) return [];\n  if (Array.isArray(response.items)) return response.items;\n  if (Array.isArray(response.Items)) return response.Items;\n  return [];\n};\n\nconst childItems = (obj, prop) =\u003e {\n  if (!obj) return [];\n  const v = obj[prop];\n  if (Array.isArray(v)) return v;\n  if (v \u0026\u0026 Array.isArray(v.items)) return v.items;\n  if (v \u0026\u0026 Array.isArray(v.Items)) return v.Items;\n  return [];\n};\n\nconst firstNonBlank = (vals) =\u003e {\n  for (let i = 0; i \u003c vals.length; i++) {\n    const v = vals[i];\n    if (v !== null \u0026\u0026 v !== undefined \u0026\u0026 String(v).trim() !== \u0027\u0027) return v;\n  }\n  return null;\n};\n\nconst upper = (v) =\u003e String(v === null || v === undefined ? \u0027\u0027 : v).trim().toUpperCase();\nconst asString = (v) =\u003e (v === null || v === undefined) ? \u0027\u0027 : String(v).trim();\n\nconst numberOrNull = (v) =\u003e {\n  if (v === null || v === undefined || String(v).trim() === \u0027\u0027) return null;\n  const n = Number(v);\n  return isFinite(n) ? n : null;\n};\n\nconst isValidDateYMD = (s) =\u003e {\n  if (!s || typeof s !== \u0027string\u0027) return false;\n  return /^\\d{4}-\\d{2}-\\d{2}$/.test(s.trim());\n};\n\nconst displayNameFromNameItem = (n) =\u003e {\n  if (!n) return null;\n  return firstNonBlank([\n    n.FullName, n.DisplayName, n.ListName, n.Name,\n    (firstNonBlank([n.FirstName, n.GivenName]) \u0026\u0026 firstNonBlank([n.LastName, n.FamilyName]))\n      ? (firstNonBlank([n.FirstName, n.GivenName]) + \u0027 \u0027 + firstNonBlank([n.LastName, n.FamilyName]))\n      : null\n  ]);\n};\n\nconst displayName = (person) =\u003e {\n  if (!person) return null;\n  const names = childItems(person, \u0027names\u0027);\n  let primaryName = null;\n  let globalName = null;\n  let anyName = null;\n  for (let i = 0; i \u003c names.length; i++) {\n    const n = names[i] || {};\n    const dn = displayNameFromNameItem(n);\n    if (!dn) continue;\n    if (!anyName) anyName = dn;\n    if (!primaryName \u0026\u0026 (n.PrimaryFlag === true || upper(n.PrimaryFlag) === \u0027TRUE\u0027 || upper(n.PrimaryFlag) === \u0027Y\u0027)) primaryName = dn;\n    if (!globalName \u0026\u0026 (upper(n.NameType) === \u0027GLOBAL\u0027 || upper(n.NameType) === \u0027GLOBAL_NAME\u0027)) globalName = dn;\n  }\n  return firstNonBlank([person.DisplayName, person.displayName, person.PersonDisplayName,\n    person.FullName, person.Name, person.PersonName, primaryName, globalName, anyName, person.PersonNumber]);\n};\n\nconst directLinksOf = (item) =\u003e {\n  if (!item) return [];\n  let links = [];\n  if (Array.isArray(item.links)) links = links.concat(item.links);\n  if (Array.isArray(item.Links)) links = links.concat(item.Links);\n  return links;\n};\n\nconst contextLinksOf = (item) =\u003e {\n  if (!item) return [];\n  let links = [];\n  const c = item[\u0027@context\u0027] || item.context || item.Context || null;\n  if (c \u0026\u0026 Array.isArray(c.links)) links = links.concat(c.links);\n  if (c \u0026\u0026 Array.isArray(c.Links)) links = links.concat(c.Links);\n  return links;\n};\n\nconst keyLooksLikeOpaqueHrefKey = (key) =\u003e {\n  const k = asString(key);\n  if (!k) return false;\n  if (k.indexOf(\u0027,\u0027) \u003e= 0 || k.indexOf(\u0027%2C\u0027) \u003e= 0 || k.indexOf(\u0027%2c\u0027) \u003e= 0) return false;\n  if (/^\\d+$/.test(k)) return true;\n  return /^[0-9A-Fa-f]{40,}$/.test(k);\n};\n\nconst leftPad = (text, length, padChar) =\u003e {\n  let s = asString(text);\n  const p = asString(padChar) || \u00270\u0027;\n  while (s.length \u003c length) s = p + s;\n  return s;\n};\n\nconst numericIdFromEffectiveDatedKey = (key) =\u003e {\n  const k = asString(key);\n  if (!k) return null;\n  const decoded = k.replace(/%2C/gi, \u0027,\u0027);\n  const first = decoded.split(\u0027,\u0027)[0];\n  if (/^\\d+$/.test(first)) return first;\n  return null;\n};\n\nconst dateToUtcMidnightMillisHex = (dateText) =\u003e {\n  const d = asString(dateText);\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(d);\n  if (!m) return null;\n  const y = Number(m[1]);\n  const mo = Number(m[2]);\n  const day = Number(m[3]);\n  const millis = Date.UTC(y, mo - 1, day);\n  if (!isFinite(millis)) return null;\n  return leftPad(millis.toString(16).toUpperCase(), 16, \u00270\u0027);\n};\n\nconst oracleOpaqueKeyFromIdAndDate = (numericId, dateText) =\u003e {\n  const idText = asString(numericId);\n  if (!/^\\d+$/.test(idText)) return null;\n  const idNumber = Number(idText);\n  if (!isFinite(idNumber)) return null;\n  const idHex = leftPad(idNumber.toString(16).toUpperCase(), 13, \u00270\u0027);\n  const dateHex = dateToUtcMidnightMillisHex(dateText);\n  if (!dateHex) return null;\n  return \u002700020000000EACED00057708000\u0027 +\n    idHex +\n    \u00270000004AACED00057372000D6A6176612E73716C2E4461746514FA46683F3566970200007872000E6A6176612E7574696C2E44617465686A81014B59741903000078707708\u0027 +\n    dateHex + \u002778\u0027;\n};\n\nconst resolveOpaqueKey = (rawKey, numericId, lookupDateForKey, label, warnings) =\u003e {\n  if (keyLooksLikeOpaqueHrefKey(rawKey)) {\n    return { key: rawKey, source: \u0027raw_href\u0027, rawKey: rawKey };\n  }\n  const idCandidate = firstNonBlank([numericId, numericIdFromEffectiveDatedKey(rawKey)]);\n  const generated = oracleOpaqueKeyFromIdAndDate(idCandidate, lookupDateForKey);\n  if (generated \u0026\u0026 keyLooksLikeOpaqueHrefKey(generated)) {\n    warnings.push(label + \u0027 REST key was generated from numeric ID \u0027 + idCandidate + \u0027 and lookup effective date \u0027 + lookupDateForKey + \u0027 because Agent Studio returned a transformed effective-dated key instead of the raw href key.\u0027);\n    return { key: generated, source: \u0027generated_from_numeric_id_and_lookup_date\u0027, rawKey: rawKey };\n  }\n  return { key: rawKey, source: rawKey ? \u0027unusable_transformed_key\u0027 : \u0027not_found\u0027, rawKey: rawKey };\n};\n\nconst keyAfterSegment = (href, segment) =\u003e {\n  if (!href || !segment) return null;\n  const marker = \u0027/\u0027 + segment + \u0027/\u0027;\n  const text = String(href);\n  const idx = text.indexOf(marker);\n  if (idx \u003c 0) return null;\n  const rest = text.substring(idx + marker.length);\n  const key = rest.split(\u0027/\u0027)[0].split(\u0027?\u0027)[0];\n  return key || null;\n};\n\nconst keyFromLinks = (links, segment, expectedName) =\u003e {\n  let fallback = null;\n  for (let i = 0; i \u003c links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const name = asString(l.name);\n    if (expectedName \u0026\u0026 name \u0026\u0026 name !== expectedName) continue;\n    const rel = asString(l.rel).toLowerCase();\n    const key = keyAfterSegment(l.href, segment);\n    if (!key) continue;\n    if ((rel === \u0027self\u0027 || rel === \u0027canonical\u0027) \u0026\u0026 keyLooksLikeOpaqueHrefKey(key)) return key;\n    if (!fallback) fallback = key;\n  }\n  for (let i = 0; i \u003c links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const key = keyAfterSegment(l.href, segment);\n    if (keyLooksLikeOpaqueHrefKey(key)) return key;\n  }\n  return fallback;\n};\n\nconst keyFromItem = (item, segment, expectedName) =\u003e {\n  const directKey = keyFromLinks(directLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(directKey)) return directKey;\n  const contextKey = keyFromLinks(contextLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(contextKey)) return contextKey;\n  return directKey || contextKey;\n};\n\nconst isDateInRange = (date, start, end) =\u003e {\n  const d = asString(date);\n  const s = asString(start);\n  const e = asString(end);\n  if (!d) return true;\n  if (s \u0026\u0026 d \u003c s) return false;\n  if (e \u0026\u0026 d \u003e e) return false;\n  return true;\n};\n\nconst workRelIsActive = (rel, asOfDate) =\u003e {\n  if (!rel) return false;\n  const start = firstNonBlank([rel.StartDate, rel.EffectiveStartDate]);\n  const end = firstNonBlank([rel.TerminationDate, rel.ProjectedTerminationDate, rel.EffectiveEndDate, \u00274712-12-31\u0027]);\n  return isDateInRange(asOfDate, start, end);\n};\n\nconst workRelIsPrimary = (rel) =\u003e {\n  return rel \u0026\u0026 (rel.PrimaryFlag === true || upper(rel.PrimaryFlag) === \u0027TRUE\u0027 || upper(rel.PrimaryFlag) === \u0027Y\u0027);\n};\n\nconst chooseWorkRelationship = (worker, asOfDate, errors, label) =\u003e {\n  const rels = childItems(worker, \u0027workRelationships\u0027);\n  if (!rels.length) return null;\n  const active = [];\n  for (let i = 0; i \u003c rels.length; i++) {\n    if (workRelIsActive(rels[i], asOfDate)) active.push(rels[i]);\n  }\n  const candidates = active.length ? active : rels;\n  const primaryActive = [];\n  for (let i = 0; i \u003c candidates.length; i++) {\n    if (workRelIsPrimary(candidates[i])) primaryActive.push(candidates[i]);\n  }\n  if (primaryActive.length === 1) return primaryActive[0];\n  if (active.length === 1) return active[0];\n  if (primaryActive.length \u003e 1) errors.push(\u0027More than one active primary work relationship was found for \u0027 + label + \u0027. Please resolve the duplicate work relationship before using the agent.\u0027);\n  else if (active.length \u003e 1) errors.push(\u0027More than one active work relationship was found for \u0027 + label + \u0027. Please resolve the duplicate work relationship before using the agent.\u0027);\n  return candidates[0];\n};\n\nconst targetItems = itemsOf(targetResponse);\nconst errors = [];\nconst warnings = [];\n\nconst lookupLabel = (person) =\u003e {\n  if (!person) return \u0027Name not available | Person Number: Not available\u0027;\n  const pn = firstNonBlank([person.PersonNumber, person.personNumber, \u0027Not available\u0027]);\n  const dn = displayName(person) || \u0027Name not available\u0027;\n  return dn + \u0027 | Person Number: \u0027 + pn;\n};\n\nconst duplicateListText = (items) =\u003e {\n  const rows = [];\n  for (let i = 0; i \u003c items.length; i++) rows.push(lookupLabel(items[i]));\n  return rows.join(\u0027; \u0027);\n};\n\nif (lookupCtx.hasError === true \u0026\u0026 lookupCtx.errors \u0026\u0026 lookupCtx.errors.length) {\n  for (let i = 0; i \u003c lookupCtx.errors.length; i++) errors.push(lookupCtx.errors[i]);\n}\n\nif (lookupCtx.targetLookupMode === \u0027DISPLAY_NAME\u0027 \u0026\u0026 targetItems.length \u003e 1) {\n  errors.push(\u0027Multiple workers were found for display name \u0027 + lookupCtx.targetLookupText + \u0027. Please rerun the request using the correct worker person number. Matches: \u0027 + duplicateListText(targetItems));\n}\n\nconst targetWorker = targetItems.length ? targetItems[0] : null;\nif (!targetWorker) errors.push(\u0027Target worker was not found for \u0027 + (lookupCtx.targetLookupText || req.workerPersonNumber) + \u0027.\u0027);\n\nlet targetRel = null;\nif (targetWorker) {\n  targetRel = chooseWorkRelationship(targetWorker, lookupDate, errors, \u0027target worker \u0027 + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetRel) errors.push(\u0027No work relationship was found for the target worker.\u0027);\n}\n\n// Contingent worker guard â€” WorkerType must be \u0027C\u0027\nconst workerType = firstNonBlank([targetRel \u0026\u0026 targetRel.WorkerType, targetRel \u0026\u0026 targetRel.workerType]);\nif (targetRel \u0026\u0026 upper(workerType) !== \u0027C\u0027) {\n  errors.push(\u0027This agent only updates contract end dates for contingent workers (CWK). This worker is not a contingent worker (WorkerType: \u0027 + asString(workerType) + \u0027).\u0027);\n}\n\nconst rawWorkersUniqID = targetWorker ? keyFromItem(targetWorker, \u0027workers\u0027, \u0027workers\u0027) : null;\nconst targetWorkerIdForKey = targetWorker ? firstNonBlank([targetWorker.PersonId, targetWorker.personId, numericIdFromEffectiveDatedKey(rawWorkersUniqID)]) : null;\nconst workerKeyResolution = targetWorker ? resolveOpaqueKey(rawWorkersUniqID, targetWorkerIdForKey, lookupDate, \u0027Worker\u0027, warnings) : { key: null, source: \u0027not_found\u0027, rawKey: null };\nconst workersUniqID = (asString(targetWorkerIdForKey) !== \u0027\u0027) ? asString(targetWorkerIdForKey) : workerKeyResolution.key;\nconst periodOfServiceId = firstNonBlank([targetRel \u0026\u0026 targetRel.PeriodOfServiceId, targetRel \u0026\u0026 targetRel.periodOfServiceId]);\n\nif (!workersUniqID) errors.push(\u0027The workersUniqID could not be resolved from the worker self link named workers.\u0027);\nif (workersUniqID \u0026\u0026 !keyLooksLikeOpaqueHrefKey(workersUniqID)) errors.push(\u0027The workersUniqID resolved to \u0027 + workersUniqID + \u0027, which is not usable. The agent could not generate an opaque REST key from PersonId \u0027 + targetWorkerIdForKey + \u0027 and lookup effective date \u0027 + lookupDate + \u0027.\u0027);\nif (!periodOfServiceId) errors.push(\u0027The PeriodOfServiceId could not be resolved from the active work relationship.\u0027);\n\n// Effective date format checks\nif (!isValidDateYMD(updateDate)) {\n  errors.push(\u0027New projected end date is required in YYYY-MM-DD format. Received: \u0027 + asString(updateDate));\n}\nif (!isValidDateYMD(notificationDate)) {\n  errors.push(\u0027Notification date is required in YYYY-MM-DD format. Received: \u0027 + asString(notificationDate));\n}\n\n// Action reason code mapping\nconst reasonMap = {\n  \"End of interim mission\": \"TERMINATE_END_INTERIM\",\n  \"End of Training agreement\": \"TERMINATE_TRAINING\",\n  \"End of Secondment\": \"HS2_POS_END_SECONDMENT\",\n  \"End Of Contract\": \"HS2_TERM_PLACE_END_CONTRACT\",\n  \"End Temporary Secondary Work Location\": \"HS2_LOC_2ND_LOC_TEMP_END\",\n  \"End of construction site redundancy\": \"REDUND_SITE\",\n  \"End of Position Temporary Cover\": \"ORA_HRX_FR_TEMP_END_POSITION\",\n  \"End of fixed term contract\": \"TERMINATE_END_CDD\",\n  \"End of probation period initiated by employee\": \"TERMINATE_END_PROB_EE\",\n  \"End of probation period initiated by employer\": \"TERMINATE_END_PROB_ER\",\n  \"End of mandate\": \"TERMINATE_MANDATE\",\n  \"End of Global Temporary Assignment for Manager\": \"MANAGER_END_GLB_TEMP_ASG\",\n  \"End of apprenticeship contract\": \"TERMINATE_END_APPRENTIC\",\n  \"End Probation\": \"ENDPROB\",\n  \"End of Assignment\": \"EOA\",\n  \"End of Assignment for Manager\": \"MANAGER_END_ASG\",\n  \"End of Employment Terms for Manager\": \"MANAGER_END_EMP_TERMS\",\n  \"End of Temporary Assignment for Manager\": \"MANAGER_END_TEMP_ASG\"\n};\nconst reasonCode = reasonMap[actionReason] || \"HS2_TERM_PLACE_END_CONTRACT\";\n\nconst currentProjectedEndDate = firstNonBlank([targetRel \u0026\u0026 targetRel.TerminationDate, targetRel \u0026\u0026 targetRel.ProjectedTerminationDate]);\n\n// Build POST terminatePayload\nconst terminatePayload = errors.length === 0 ? JSON.stringify({\n  actionCode: \"TERMINATION\",\n  terminationDate: asString(updateDate),\n  notificationDate: asString(notificationDate),\n  reasonCode: reasonCode,\n  recommendedForRehire: \"ORA_NS\"\n}) : null;\n\nconst result = {\n  hasError: errors.length \u003e 0,\n  errors: errors,\n  warnings: warnings,\n  request: req,\n  lookupEffectiveDate: lookupDate,\n  updateEffectiveDate: updateDate,\n  notificationDate: notificationDate,\n  actionReason: actionReason,\n  reasonCode: reasonCode,\n  workersUniqID: workersUniqID,\n  rawWorkersUniqID: rawWorkersUniqID,\n  workersUniqIDSource: workerKeyResolution.source,\n  periodOfServiceId: periodOfServiceId,\n  targetWorkerName: displayName(targetWorker),\n  targetWorkerPersonNumber: firstNonBlank([targetWorker \u0026\u0026 targetWorker.PersonNumber, targetWorker \u0026\u0026 targetWorker.personNumber, req.workerPersonNumber]),\n  workerType: workerType,\n  currentProjectedEndDate: currentProjectedEndDate,\n  terminatePayload: terminatePayload\n};\n\nreturn result;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000013"
+                                                                                      },
+                                                                         "code":  "BUILD_CONTRACT_END_CONTEXT",
+                                                                         "id":  "9300000000012",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If Contract End Date Context Has Error"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "9300000000014",
+                                                                                          "false":  "9300000000016"
+                                                                                      },
+                                                                         "code":  "IF_CONTRACT_END_CONTEXT_HAS_ERROR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000013",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000013_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.hasError === true}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Format Contract End Date Context Error",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const errors = $context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.errors || [];\nlet message = \u0027I could not prepare the contract end update because:\u0027;\nfor (let i = 0; i \u003c errors.length; i++) {\n  message += \u0027\\n- \u0027 + errors[i];\n}\nreturn { message: message };"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "963000009"
+                                                                                      },
+                                                                         "code":  "FORMAT_CONTRACT_END_CONTEXT_ERROR",
+                                                                         "id":  "9300000000014",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Contract End Date Context Error"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_CONTRACT_END_CONTEXT_ERROR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000015",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000015_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.FORMAT_CONTRACT_END_CONTEXT_ERROR.$output.result.message}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Contract End Date Change Confirmation",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const ctx = $context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result;\nconst req = ctx.request || {};\n\nconst asString = (v) =\u003e (v === null || v === undefined) ? \u0027\u0027 : String(v).trim();\n\nconst displayValue = (v) =\u003e {\n  const s = asString(v);\n  return s ? s : \u0027Not available\u0027;\n};\n\nlet msg = \u0027Confirm Re-terminate Contract End Update\\n\\n\u0027;\nmsg += \u0027Request Summary\\n\u0027;\nmsg += \u0027- Worker: \u0027 + displayValue(ctx.targetWorkerName);\nif (ctx.targetWorkerPersonNumber) msg += \u0027 | Person Number: \u0027 + ctx.targetWorkerPersonNumber;\nmsg += \u0027\\n\u0027;\nmsg += \u0027- Worker Type: Contingent Worker (CWK)\\n\u0027;\nmsg += \u0027- Prior Termination Date: \u0027 + displayValue(ctx.currentProjectedEndDate) + \u0027\\n\u0027;\nmsg += \u0027- New Termination Date: \u0027 + displayValue(req.projectedEndDate) + \u0027\\n\u0027;\nmsg += \u0027- Notification Date: \u0027 + displayValue(req.notificationDate) + \u0027\\n\u0027;\nmsg += \u0027- Action Reason: \u0027 + displayValue(req.actionReason) + \u0027 (\u0027 + ctx.reasonCode + \u0027)\\n\\n\u0027;\n\nmsg += \u0027Approval Action\\n\u0027;\nmsg += \u0027Click Approve to execute the two-step termination update (reverse original termination and submit new termination with updated details). Click Reject to cancel.\u0027;\n\nvar cobj = new Object();\ncobj.action = \u0027confirmContractEnd\u0027;\nvar rsrc = req || new Object();\nvar rskip = [\u0027isConfirmed\u0027, \u0027readyToProceed\u0027, \u0027summary\u0027, \u0027missingFields\u0027, \u0027crossQuestion\u0027, \u0027intent\u0027, \u0027parseError\u0027];\nvar rks = Object.keys(rsrc);\nfor (var ri = 0; ri \u003c rks.length; ri++) { var rk = rks[ri]; if (rskip.indexOf(rk) \u003e= 0) { continue; } if (cobj[rk] === undefined \u0026\u0026 rsrc[rk] !== null \u0026\u0026 typeof rsrc[rk] !== \u0027object\u0027) { cobj[rk] = rsrc[rk]; } }\nvar cstr = \u0027\u0027;\ntry { cstr = JSON.stringify(cobj); } catch (e) { cstr = \u0027\u0027; }\nvar confirmCommand = \u0027ora.Invoke(\"confirmContractEnd\", \u0027 + JSON.stringify(cstr) + \u0027)\u0027;\nvar csum = String(msg || \u0027\u0027);\nvar cut = csum.indexOf(\u0027Approval Action\u0027);\nif (cut \u003e 0) { csum = csum.slice(0, cut); }\nvar ccard = new Object();\nccard.title = \u0027Confirm Contract End Change\u0027;\nccard.patternId = \u0027cardWidget\u0027;\nccard.description = \u0027Review the proposed change before it is written.\u0027;\nvar cp = new Object();\ncp.subject = \u0027Confirm Contract End Change\u0027;\ncp.summary = csum;\ncp.badgeText = \u0027Needs confirmation\u0027;\ncp.variant = \u0027warning\u0027;\nvar clink = new Object();\nclink.text = \u0027Confirm Change\u0027;\nclink.action = confirmCommand;\ncp.link = clink;\nccard.properties = cp;\nvar bout = new Object();\nbout.message = msg;\nbout.confirmCommand = confirmCommand;\nbout.confirmCard = ccard;\nreturn bout;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300009002"
+                                                                                      },
+                                                                         "code":  "BUILD_CONTRACT_END_CONFIRMATION",
+                                                                         "id":  "9300000000016",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "businessObjectCode":  "HS2_HCM_CONTRACT_END_SUBMIT_TERM",
+                                                                                          "errorNodeId":  "9300000000021",
+                                                                                          "functionName":  "terminate_worker_ce_v1",
+                                                                                          "name":  "Submit New Termination"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000021"
+                                                                                      },
+                                                                         "code":  "SUBMIT_NEW_TERMINATION",
+                                                                         "id":  "9300000000019",
+                                                                         "inputs":  {
+                                                                                        "value":  [
+                                                                                                      {
+                                                                                                          "id":  "9300000000019_1",
+                                                                                                          "name":  "workersUniqID",
+                                                                                                          "type":  "string",
+                                                                                                          "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.workersUniqID}}"
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "id":  "9300000000019_2",
+                                                                                                          "name":  "PeriodOfServiceId",
+                                                                                                          "type":  "string",
+                                                                                                          "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.periodOfServiceId}}"
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "id":  "9300000000019_3",
+                                                                                                          "name":  "terminatePayload",
+                                                                                                          "type":  "string",
+                                                                                                          "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.terminatePayload}}"
+                                                                                                      }
+                                                                                                  ],
+                                                                                        "Count":  3
+                                                                                    },
+                                                                         "outputSpecification":  "{}",
+                                                                         "type":  "BO_FUNCTION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Final Contract End Date Change Response",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const ctx = $context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result;\nconst reverseNode = $context.$nodes.REVERSE_TERMINATION || {};\nconst terminateNode = $context.$nodes.SUBMIT_NEW_TERMINATION || {};\n\nconst firstNonBlankLocal = (vals) =\u003e {\n  for (let i = 0; i \u003c vals.length; i++) {\n    const v = vals[i];\n    if (v !== null \u0026\u0026 v !== undefined \u0026\u0026 String(v).trim() !== \u0027\u0027) return v;\n  }\n  return null;\n};\n\nconst httpStatus = (n) =\u003e {\n  if (!n) return null;\n  const candidates = [\n    n.$output \u0026\u0026 n.$output.responseStatus,\n    n.$output \u0026\u0026 n.$output.output \u0026\u0026 n.$output.output.responseStatus,\n    n.$output \u0026\u0026 n.$output.result \u0026\u0026 n.$output.result.responseStatus,\n    n.responseStatus,\n    n.statusCode\n  ];\n  for (let i = 0; i \u003c candidates.length; i++) {\n    const v = candidates[i];\n    if (v !== null \u0026\u0026 v !== undefined \u0026\u0026 String(v).trim() !== \u0027\u0027 \u0026\u0026 !isNaN(Number(v))) return Number(v);\n  }\n  return null;\n};\n\nconst responseBody = (n) =\u003e {\n  if (!n) return null;\n  return firstNonBlankLocal([\n    n.$output \u0026\u0026 n.$output.response,\n    n.$output \u0026\u0026 n.$output.output \u0026\u0026 n.$output.output.response,\n    n.$output \u0026\u0026 n.$output.result \u0026\u0026 n.$output.result.response\n  ]);\n};\n\nconst errorText = (n) =\u003e {\n  if (!n) return null;\n  const st = httpStatus(n);\n  const body = responseBody(n);\n  if (st \u0026\u0026 st \u003e= 400) return \u0027HTTP \u0027 + st + (body ? \u0027: \u0027 + body : \u0027\u0027);\n  if (n.$error \u0026\u0026 n.$error.$info) return n.$error.$info;\n  if (n.$error \u0026\u0026 n.$error.info) return n.$error.info;\n  if (n.$error \u0026\u0026 n.$error.message) return n.$error.message;\n  if (n.$error \u0026\u0026 n.$error.$code) return n.$error.$code;\n  if (n.$output \u0026\u0026 n.$output.error) return n.$output.error;\n  return null;\n};\n\nconst statusText = (n) =\u003e n ? (n.$status || n.status || null) : null;\n\nconst isFailure = (n) =\u003e {\n  const stCode = httpStatus(n);\n  if (stCode \u0026\u0026 stCode \u003e= 400) return true;\n  const err = errorText(n);\n  if (err) return true;\n  const st = statusText(n);\n  if (!st) return false;\n  const s = String(st).toUpperCase();\n  return s.indexOf(\u0027FAIL\u0027) \u003e= 0 || s.indexOf(\u0027ERROR\u0027) \u003e= 0 || /^4\\d\\d/.test(s) || /^5\\d\\d/.test(s);\n};\n\nconst failedReverse = isFailure(reverseNode);\nconst failedTerminate = isFailure(terminateNode);\nconst failed = failedReverse || failedTerminate;\n\nlet msg = \u0027\u0027;\nif (!failed) {\n  msg += \u0027Contract end date termination update completed successfully.\\n\\n\u0027;\n} else {\n  msg += \u0027The contract end date termination update could not be completed.\\n\\n\u0027;\n}\n\nmsg += \u0027Summary\\n\u0027;\nmsg += \u0027- Worker: \u0027 + (ctx.targetWorkerName || \u0027\u0027) + \u0027 (\u0027 + ctx.targetWorkerPersonNumber + \u0027)\\n\u0027;\nmsg += \u0027- Worker Type: Contingent Worker (CWK)\\n\u0027;\nmsg += \u0027- Prior Termination Date: \u0027 + (ctx.currentProjectedEndDate || \u0027Not available\u0027) + \u0027\\n\u0027;\nmsg += \u0027- New Termination Date: \u0027 + ctx.updateEffectiveDate + \u0027\\n\u0027;\nmsg += \u0027- Notification Date: \u0027 + ctx.notificationDate + \u0027\\n\u0027;\nmsg += \u0027- Action Reason: \u0027 + ctx.actionReason + \u0027 (\u0027 + ctx.reasonCode + \u0027)\\n\\n\u0027;\n\nmsg += \u0027Operation Status\\n\u0027;\nmsg += \u0027- Step 1 (Reverse Original Termination): \u0027 + (failedReverse ? \u0027Failed\u0027 : \u0027Success\u0027);\nconst reverseDetail = errorText(reverseNode);\nif (reverseDetail) msg += \u0027\\n  \u0027 + String(reverseDetail).replace(/Bad Request/gi, \u0027\u0027).trim();\n\nmsg += \u0027\\n- Step 2 (Submit New Termination): \u0027 + (failedTerminate ? \u0027Failed\u0027 : \u0027Success\u0027);\nconst terminateDetail = errorText(terminateNode);\nif (terminateDetail) msg += \u0027\\n  \u0027 + String(terminateDetail).replace(/Bad Request/gi, \u0027\u0027).trim();\n\nreturn { message: msg, failures: failed ? 1 : 0 };"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "963000006"
+                                                                                      },
+                                                                         "code":  "FINAL_CONTRACT_END_RESPONSE",
+                                                                         "id":  "9300000000021",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Final Contract End Date Change Status"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_FINAL_CONTRACT_END_STATUS",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9300000000022",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000022_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.FINAL_CONTRACT_END_RESPONSE.$output.result.message}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Route Ora Message Hint"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "InitDisplay":  "939000002",
+                                                                                          "Summary":  "939000003",
+                                                                                          "InitActions":  "939000004",
+                                                                                          "InitSubtitle":  "939000005",
+                                                                                          "InitCommunications":  "939000006",
+                                                                                          "default":  "9300000000001",
+                                                                                          "InvokeAction":  "963000001"
+                                                                                      },
+                                                                         "code":  "ROUTE_ORA_HINT_V3",
+                                                                         "id":  "939000001",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "939000001_1",
+                                                                                            "name":  "caseExpression",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$app.$OraMessageHint}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "SWITCH"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitDisplay"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_INIT_DISPLAY",
+                                                                         "id":  "939000002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "939000002_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Output exactly one Oracle information display block.\nUse the block name oraInfoDisplay and key hs2-contract-end-card.\nInside the block, return valid JSON with this widget shape:\n{\n  \"patternId\": \"cardWidget\",\n  \"config\": {\n    \"subject\": \"Contract End Update\",\n    \"summary\": \"Set or update the contract end date for a contingent worker. Provide the worker and new end date to begin.\",\n    \"badgeText\": \"Info\",\n    \"variant\": \"info\",\n    \"link\": {\n      \"text\": \"Start Contract End Update\",\n      \"action\": \"ora.Invoke(\\\"startContractEnd\\\", \\\"startContractEnd\\\")\"\n    }\n  }\n}\nRules:\n- The link action must call the exact command string: ora.Invoke(\\\"startContractEnd\\\", \\\"startContractEnd\\\")\n- Output must start immediately with the opening tag for oraInfoDisplay.\n- Do not output any markdown code blocks, backticks, introductory text, or preamble (do not write \"Here is the card\" or similar).\n- Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitSummary"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_SUMMARY",
+                                                                         "id":  "939000003",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "939000003_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "In no more than 50 words, state that the HS2 Contract End advisor is ready and that it sets or updates the contract end date for a contingent worker, always confirming with the user before writing any change. Output only the sentence."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitActions"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_INIT_ACTIONS",
+                                                                         "id":  "939000004",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "939000004_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Do not create any priority actions for initial load. Output only an empty JSON array: []"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "GenerateSubTitle"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_SUBTITLE",
+                                                                         "id":  "939000005",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "939000005_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Output only this exact subtitle text and nothing else: Contract End change - provide the worker and effective date to begin."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitCommunications"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_INIT_COMMS",
+                                                                         "id":  "939000006",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "939000006_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Output only this exact sentence and nothing else: No communications are required for this advisor."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Ask For Details"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_ASK_DETAILS_CONV",
+                                                                         "id":  "9300009001",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300009001_1",
+                                                                                            "name":  "message",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Please provide the missing contract end details. Required: worker name or number, new projected end date, notification date, and action reason.\n\nClick Request Changes to provide the missing details, or click Approve to cancel this contract end request."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If User Confirmed"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "9300000000018",
+                                                                                          "false":  "963000005"
+                                                                                      },
+                                                                         "code":  "IF_USER_CONFIRMED_CONV",
+                                                                         "id":  "9300009002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300009002_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.isConfirmed === true}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Confirmation Prompt"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_CONFIRM_PROMPT_CONV",
+                                                                         "id":  "9300009003",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300009003_1",
+                                                                                            "name":  "message",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONFIRMATION.$output.result.message}}\u003cbr\u003e\u003cbr\u003eReply \u003cb\u003econfirm\u003c/b\u003e to proceed, or \u003cb\u003ecancel\u003c/b\u003e to stop."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Parse Ora Action",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var actionRaw = \u0027\u0027;\ntry { actionRaw = $context.$app.$OraAction; } catch (e) { actionRaw = null; }\nvar hasRaw = !(actionRaw === null || actionRaw === undefined || String(actionRaw).trim() === \u0027\u0027);\nif (!hasRaw) { try { actionRaw = $context.$system.$inputMessage; } catch (e) { actionRaw = null; } }\nvar s = (actionRaw === null || actionRaw === undefined) ? \u0027\u0027 : String(actionRaw);\nvar v = \u0027\u0027;\nif (s.indexOf(\u0027submitContractEnd\u0027) \u003e= 0) v = \u0027submitContractEnd\u0027;\nelse if (s.indexOf(\u0027startContractEnd\u0027) \u003e= 0) v = \u0027startContractEnd\u0027;\nelse if (s.indexOf(\u0027confirmContractEnd\u0027) \u003e= 0) v = \u0027confirmContractEnd\u0027;\nvar pout = new Object();\npout.verb = v || \u0027fallthrough\u0027;\nreturn pout;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "963000002"
+                                                                                      },
+                                                                         "code":  "PARSE_ORA_ACTION_963",
+                                                                         "id":  "963000001",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Route Parsed Action"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "startContractEnd":  "963000003",
+                                                                                          "submitContractEnd":  "9300000000001",
+                                                                                          "confirmContractEnd":  "9300000000001",
+                                                                                          "default":  "9300000000001"
+                                                                                      },
+                                                                         "code":  "ROUTE_PARSED_ACTION_963",
+                                                                         "id":  "963000002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000002_1",
+                                                                                            "name":  "caseExpression",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_ORA_ACTION_963.$output.result.verb}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "SWITCH"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Contract End Update Form",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var s = (v) =\u003e (v === null || v === undefined) ? \u0027\u0027 : String(v).trim();\nvar today = \u0027\u0027;\ntry { today = s($context.$system.$currentDate); } catch (e) { today = \u0027\u0027; }\nvar fields = [];\n\nvar f0 = new Object();\nf0.id = \u0027worker\u0027;\nf0.type = \u0027text\u0027;\nf0.label = \u0027Contingent Worker\u0027;\nf0.value = \u0027\u0027;\nfields.push(f0);\n\nvar f1 = new Object();\nf1.id = \u0027projectedEndDate\u0027;\nf1.type = \u0027date\u0027;\nf1.label = \u0027New Projected End Date\u0027;\nf1.value = \u0027\u0027;\nfields.push(f1);\n\nvar f2 = new Object();\nf2.id = \u0027notificationDate\u0027;\nf2.type = \u0027date\u0027;\nf2.label = \u0027Notification Date\u0027;\nf2.value = today;\nfields.push(f2);\n\nvar f3 = new Object();\nf3.id = \u0027actionReason\u0027;\nf3.type = \u0027select\u0027;\nf3.label = \u0027Action Reason\u0027;\nf3.value = \u0027End Of Contract\u0027;\n\nvar f3o = [];\nvar reasons = [\n  {\"value\": \"End of interim mission\", \"label\": \"End of interim mission\"},\n  {\"value\": \"End of Training agreement\", \"label\": \"End of Training agreement\"},\n  {\"value\": \"End of Secondment\", \"label\": \"End of Secondment\"},\n  {\"value\": \"End Of Contract\", \"label\": \"End Of Contract\"},\n  {\"value\": \"End Temporary Secondary Work Location\", \"label\": \"End Temporary Secondary Work Location\"},\n  {\"value\": \"End of construction site redundancy\", \"label\": \"End of construction site redundancy\"},\n  {\"value\": \"End of Position Temporary Cover\", \"label\": \"End of Position Temporary Cover\"},\n  {\"value\": \"End of fixed term contract\", \"label\": \"End of fixed term contract\"},\n  {\"value\": \"End of probation period initiated by employee\", \"label\": \"End of probation period initiated by employee\"},\n  {\"value\": \"End of probation period initiated by employer\", \"label\": \"End of probation period initiated by employer\"},\n  {\"value\": \"End of mandate\", \"label\": \"End of mandate\"},\n  {\"value\": \"End of Global Temporary Assignment for Manager\", \"label\": \"End of Global Temporary Assignment for Manager\"},\n  {\"value\": \"End of apprenticeship contract\", \"label\": \"End of apprenticeship contract\"},\n  {\"value\": \"End Probation\", \"label\": \"End Probation\"},\n  {\"value\": \"End of Assignment\", \"label\": \"End of Assignment\"},\n  {\"value\": \"End of Assignment for Manager\", \"label\": \"End of Assignment for Manager\"},\n  {\"value\": \"End of Employment Terms for Manager\", \"label\": \"End of Employment Terms for Manager\"},\n  {\"value\": \"End of Temporary Assignment for Manager\", \"label\": \"End of Temporary Assignment for Manager\"}\n];\n\nfor (var i = 0; i \u003c reasons.length; i++) {\n  var opt = new Object();\n  opt.value = reasons[i].value;\n  opt.label = reasons[i].label;\n  f3o.push(opt);\n}\nf3.options = f3o;\nfields.push(f3);\n\nvar fc = new Object();\nfc.id = \u0027formContext\u0027;\nfc.type = \u0027system\u0027;\nfc.label = \u0027Context\u0027;\nfc.value = \u0027submitContractEnd\u0027;\nfields.push(fc);\n\nvar props = new Object();\nprops.id = \u0027submitContractEnd\u0027;\nprops.readOnly = false;\nprops.fields = fields;\n\nvar widget = new Object();\nwidget.title = \u0027Contract End Update\u0027;\nwidget.patternId = \u0027recordWidget\u0027;\nwidget.properties = props;\nwidget.config = props;\n\nvar wrapped = \u0027\u003c\u0027 + \u0027oraInfoDisplay key=\u0027 + \u0027\"hs2-contract-end-form\"\u003e\u0027 + \u0027\\n\u0027 + JSON.stringify(widget) + \u0027\\n\u0027 + \u0027\u003c/\u0027 + \u0027oraInfoDisplay\u003e\u0027;\nreturn wrapped;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "963000004"
+                                                                                      },
+                                                                         "code":  "BUILD_STARTCONTRACTEND_FORM",
+                                                                         "id":  "963000003",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"properties\":{\"error\":{\"type\":\"string\"},\"result\":{\"type\":\"string\"},\"timeout\":{\"type\":\"boolean\"}},\"type\":\"object\",\"required\":[\"result\",\"timeout\",\"error\"]}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_RECORD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Contract End Update Form"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_FORM_963",
+                                                                         "id":  "963000004",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000004_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_STARTCONTRACTEND_FORM.$output.result}}\n\nReturn the exact wrapped widget text above. Do not add any preamble, commentary, markdown, or code fences."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Contract End Confirm"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_CONFIRM_963",
+                                                                         "id":  "963000005",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000005_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Confirm card JSON: {{$context.$nodes.BUILD_CONTRACT_END_CONFIRMATION.$output.result.confirmCard}}\nConfirm command: {{$context.$nodes.BUILD_CONTRACT_END_CONFIRMATION.$output.result.confirmCommand}}\n\nYou are the Contract End advisor. Output three things in order. First, the confirm card JSON above wrapped in your standard oraInfoDisplay tag envelope with a unique key attribute, reproduced exactly as provided with the same keys, values, and value types. Second, one sentence telling the user to review the proposed change and that they may reply confirm to proceed or cancel to stop. Third, one actionable insight in your standard oraInsight format with title Confirm Contract End Change, a one-line shortDescription summarizing the change, actionText Confirm Change, priority true, and followUpCommand set EXACTLY to the Confirm command string above, copied character for character. Never display person ids or assignment ids. Output nothing else."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Contract End Receipt"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_RECEIPT_963",
+                                                                         "id":  "963000006",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000006_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Update result (JSON): {{.                                   .FINAL_CONTRACT_END_RESPONSE..result}}\n\nYou are the Contract End advisor. Output a short confirmation card titled Contract End Updated stating that the contract end update for the worker was submitted, summarizing the result message faithfully. If the result indicates an error or failure in either step (reversing the termination or submitting the new termination), instead title the card Update Did Not Complete with badgeText ERROR and summarize the failure plainly. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget. Never display person ids, assignment ids, or numeric internal identifiers. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Contract End Clarify"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_UNCLEAR_963",
+                                                                         "id":  "963000007",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000007_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Message: {{$context.$nodes.PARSE_CONTRACT_END_REQUEST.$output.crossQuestion}}\n\nYou are the Contract End advisor. Render ONE short card titled Need More Information whose summary is the message above reproduced faithfully in plain language, with no action button. If the message above is empty or missing, write instead one short sentence asking the user for the details needed to process a contract end request: contingent worker name or number, and the new projected end date. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget, badgeText Question. Never display person ids, assignment ids, numeric internal identifiers, or any instruction text. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Contract End Ask Details"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_ASK_963",
+                                                                         "id":  "963000008",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000008_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Message: Please provide the missing contract end details. Required: contingent worker name or number, new projected end date, notification date, and action reason.\n\nYou are the Contract End advisor. Render ONE short card titled Details Needed whose summary is the message above reproduced faithfully in plain language, with no action button. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget, badgeText Action required. Never display person ids, assignment ids, numeric internal identifiers, or any instruction text. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Contract End Error"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_CTXERR_963",
+                                                                         "id":  "963000009",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "963000009_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Message: {{$context.$nodes.FORMAT_CONTRACT_END_CONTEXT_ERROR.$output.result.message}}\n\nYou are the Contract End advisor. Render ONE short card titled Request Could Not Proceed whose summary is the message above reproduced faithfully in plain language, with no action button. If the message above is empty or missing, write instead one short sentence asking the user for the details needed to process a contract end request: contingent worker name or number, and the new projected end date. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget, badgeText ERROR. Never display person ids, assignment ids, numeric internal identifiers, or any instruction text. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "businessObjectCode":  "HS2_HCM_CONTRACT_END_REVERSE_TERM",
+                                                                                          "errorNodeId":  "9300000000021",
+                                                                                          "functionName":  "reverse_termination_ce_v1",
+                                                                                          "name":  "Reverse Termination"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9300000000019"
+                                                                                      },
+                                                                         "code":  "REVERSE_TERMINATION",
+                                                                         "id":  "9300000000018",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9300000000018_1",
+                                                                                            "name":  "workersUniqID",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.workersUniqID}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9300000000018_2",
+                                                                                            "name":  "PeriodOfServiceId",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_CONTRACT_END_CONTEXT.$output.result.periodOfServiceId}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "outputSpecification":  "{}",
+                                                                         "type":  "BO_FUNCTION"
+                                                                     },
+                                                                     {
+                                                                         "id":  "1781028546853",
+                                                                         "code":  "GET_USER_SESSION",
+                                                                         "type":  "TOOL",
+                                                                         "metadata":  {
+                                                                                          "toolCode":  "ORA_USER_SESSION_TOOL",
+                                                                                          "name":  "Get User Session"
+                                                                                      },
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outcomes":  {
+                                                                                          "success":  "1781029050736"
+                                                                                      }
+                                                                     },
+                                                                     {
+                                                                         "id":  "1781029050736",
+                                                                         "code":  "INIT_APP_ACTION",
+                                                                         "type":  "SET_FIELDS",
+                                                                         "metadata":  {
+                                                                                          "name":  "Init App Action"
+                                                                                      },
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "scope":  "JOB",
+                                                                                            "value":  "{{..}}",
+                                                                                            "name":  "AppAction",
+                                                                                            "id":  "1781029067375",
+                                                                                            "type":  "string"
+                                                                                        }
+                                                                                    ],
+                                                                         "outcomes":  {
+                                                                                          "success":  "1781029516594"
+                                                                                      }
+                                                                     },
+                                                                     {
+                                                                         "id":  "1781029516594",
+                                                                         "code":  "IF_APP_REQUEST",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "type":  "CONDITION",
+                                                                         "metadata":  {
+                                                                                          "name":  "If App Request"
+                                                                                      },
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "value":  "{{$context.$variables.AppAction === \"InitSubtitle\" || $context.$variables.AppAction === \"InitDisplay\" || $context.$variables.AppAction === \"Summary\" || $context.$variables.AppAction === \"Query\" || $context.$variables.AppAction === \"AdditionalContent\" || $context.$variables.AppAction === \"InitActions\" || $context.$variables.AppAction === \"InitCommunications\" || $context.$variables.AppAction === \"FillParameters\" || $context.$variables.AppAction === \"SendCommunication\" || $context.$variables.AppAction === \"InvokeAction\"}}",
+                                                                                            "name":  "condition",
+                                                                                            "id":  "1781029516596_1",
+                                                                                            "type":  "string"
+                                                                                        }
+                                                                                    ],
+                                                                         "outcomes":  {
+                                                                                          "true":  "939000001",
+                                                                                          "false":  "9300000000001"
+                                                                                      }
+                                                                     }
+                                                                 ],
+                                               "rootNode":  "start",
+                                               "variables":  [
+                                                                 {
+                                                                     "id":  "9300000001001",
+                                                                     "name":  "vContractEndRequest",
+                                                                     "scope":  "JOB",
+                                                                     "type":  "object"
+                                                                 },
+                                                                 {
+                                                                     "scope":  "JOB",
+                                                                     "name":  "AppAction",
+                                                                     "id":  "1781029017600",
+                                                                     "type":  "string"
+                                                                 }
+                                                             ],
+                                               "errorHandlers":  [
+
+                                                                 ]
+                                           },
+                          "jsonSchemaName":  "Workflow.spec",
+                          "jsonSchemaVersion":  "1",
+                          "inputs":  [
+
+                                     ],
+                          "outputSpecification":  " ",
+                          "agentsValueMappings":  [
+
+                                                  ],
+                          "modelConfiguration":  null,
+                          "humanApprovalFlag":  true,
+                          "waitFlag":  false,
+                          "triggers":  [
+                                           {
+                                               "type":  "REST",
+                                               "inputs":  [
+
+                                                          ]
+                                           }
+                                       ],
+                          "costSavings":  0,
+                          "timeSavings":  10,
+                          "chatExpTPFileUploadEnabledFlag":  false,
+                          "chatExpThirdPartyDetails":  [
+
+                                                       ],
+                          "policyIds":  [
+
+                                        ],
+                          "deletedTriggerTypes":  [
+
+                                                  ]
+                      },
+    "dependencies":  {
+                         "boFunctionNodes":  [
+                                                 {
+                                                     "ObjectProperties":  {
+                                                                              "jsonSchemaName":  "SupportedBusinessObject.objectProperties",
+                                                                              "jsonSchemaVersion":  1,
+                                                                              "tools":  [
+                                                                                            {
+                                                                                                "bodyTemplate":  "",
+                                                                                                "description":  "Gets worker details by person number or exact display name with names, work relationships, and assignments for HRSS contract end date change processing.",
+                                                                                                "id":  1,
+                                                                                                "isNew":  true,
+                                                                                                "name":  "get_worker_contract_lookup_ce_v1",
+                                                                                                "operationType":  "GET",
+                                                                                                "parameterDefinitions":  [
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                                                                                                                                 "id":  1,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "workerQuery"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                                                                                                                                 "id":  2,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "effectiveDate"
+                                                                                                                             }
+                                                                                                                         ],
+                                                                                                "resourcePath":  "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}\u0026q={workerQuery}\u0026expand=names,workRelationships.assignments\u0026onlyData=false",
+                                                                                                "resourceType":  "ADF_BC_FIXED_QUERY",
+                                                                                                "sampleQueries":  [
+                                                                                                                      {
+                                                                                                                          "query":  {
+
+                                                                                                                                    },
+                                                                                                                          "description":  "Fetch worker assignment details for contract end date change processing."
+                                                                                                                      }
+                                                                                                                  ],
+                                                                                                "type":  "BUS_OBJECT",
+                                                                                                "useNativeAuthentication":  true
+                                                                                            }
+                                                                                        ]
+                                                                          },
+                                                     "ObjectCode":  "HS2_HCM_CONTRACT_END_WORKERS",
+                                                     "Family":  "HCM",
+                                                     "Product":  "GLOBAL_HUMAN_RESOURCES",
+                                                     "ObjectSource":  "ADF_BC",
+                                                     "Category":  null,
+                                                     "RestResourcePath":  "/hcmRestApi/resources/latest/workers",
+                                                     "RestResourceIdentifier":  "-1",
+                                                     "RestSupportedOperations":  "{}",
+                                                     "ParentSupptObjectId":  null,
+                                                     "MandatoryFlag":  false,
+                                                     "SeededFlag":  false,
+                                                     "ObjectDisplayName":  "HS2 Contract End Date Change Worker Details",
+                                                     "Name":  "HS2 Contract End Date Change Worker Details",
+                                                     "Description":  "Worker lookup for HS2 HRSS contract end date changes, including names, work relationships, and active primary assignment.",
+                                                     "CreatedBy":  "HCM_IMPL1",
+                                                     "CreationDate":  "2026-06-09T04:02:32.805+00:00"
+                                                 },
+                                                 {
+                                                     "ObjectProperties":  {
+                                                                              "jsonSchemaName":  "SupportedBusinessObject.objectProperties",
+                                                                              "jsonSchemaVersion":  1,
+                                                                              "tools":  [
+                                                                                            {
+                                                                                                "headers":  {
+                                                                                                                "Content-Type":  "application/vnd.oracle.adf.action+json",
+                                                                                                                "REST-Framework-Version":  "4"
+                                                                                                            },
+                                                                                                "bodyTemplate":  "{}",
+                                                                                                "description":  "Reverse termination for a contingent worker\u0027s work relationship. Path: /workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/action/reverseTermination.",
+                                                                                                "id":  1,
+                                                                                                "isNew":  true,
+                                                                                                "name":  "reverse_termination_ce_v1",
+                                                                                                "operationType":  "POST",
+                                                                                                "parameterDefinitions":  [
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Workers resource hash key.",
+                                                                                                                                 "id":  1,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "workersUniqID"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Period of service ID for the work relationship.",
+                                                                                                                                 "id":  2,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "PeriodOfServiceId"
+                                                                                                                             }
+                                                                                                                         ],
+                                                                                                "resourcePath":  "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/action/reverseTermination",
+                                                                                                "resourceType":  "ADF_BC_FIXED_QUERY",
+                                                                                                "sampleQueries":  [
+
+                                                                                                                  ],
+                                                                                                "type":  "BUS_OBJECT",
+                                                                                                "useNativeAuthentication":  true
+                                                                                            }
+                                                                                        ]
+                                                                          },
+                                                     "ObjectCode":  "HS2_HCM_CONTRACT_END_REVERSE_TERM",
+                                                     "Family":  "HCM",
+                                                     "Product":  "GLOBAL_HUMAN_RESOURCES",
+                                                     "ObjectSource":  "ADF_BC",
+                                                     "Category":  null,
+                                                     "RestResourcePath":  "/hcmRestApi/resources/11.13.18.05/workers",
+                                                     "RestResourceIdentifier":  "-1",
+                                                     "RestSupportedOperations":  "{}",
+                                                     "ParentSupptObjectId":  null,
+                                                     "MandatoryFlag":  false,
+                                                     "SeededFlag":  false,
+                                                     "ObjectDisplayName":  "HS2 Contract End Reverse Termination",
+                                                     "Name":  "HS2 Contract End Reverse Termination",
+                                                     "Description":  "Reverse work relationship termination for contingent worker contract end changes."
+                                                 },
+                                                 {
+                                                     "ObjectProperties":  {
+                                                                              "jsonSchemaName":  "SupportedBusinessObject.objectProperties",
+                                                                              "jsonSchemaVersion":  1,
+                                                                              "tools":  [
+                                                                                            {
+                                                                                                "headers":  {
+                                                                                                                "Content-Type":  "application/vnd.oracle.adf.action+json",
+                                                                                                                "REST-Framework-Version":  "4"
+                                                                                                            },
+                                                                                                "bodyTemplate":  "{terminatePayload}",
+                                                                                                "description":  "Terminate a contingent worker\u0027s work relationship. Path: /workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/action/terminate. Body: {terminatePayload} = JSON with termination date, notification date, and reason code.",
+                                                                                                "id":  1,
+                                                                                                "isNew":  true,
+                                                                                                "name":  "terminate_worker_ce_v1",
+                                                                                                "operationType":  "POST",
+                                                                                                "parameterDefinitions":  [
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Workers resource hash key.",
+                                                                                                                                 "id":  1,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "workersUniqID"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Period of service ID for the work relationship.",
+                                                                                                                                 "id":  2,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "PeriodOfServiceId"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "JSON payload with termination details.",
+                                                                                                                                 "id":  3,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "terminatePayload"
+                                                                                                                             }
+                                                                                                                         ],
+                                                                                                "resourcePath":  "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/action/terminate",
+                                                                                                "resourceType":  "ADF_BC_FIXED_QUERY",
+                                                                                                "sampleQueries":  [
+
+                                                                                                                  ],
+                                                                                                "type":  "BUS_OBJECT",
+                                                                                                "useNativeAuthentication":  true
+                                                                                            }
+                                                                                        ]
+                                                                          },
+                                                     "ObjectCode":  "HS2_HCM_CONTRACT_END_SUBMIT_TERM",
+                                                     "Family":  "HCM",
+                                                     "Product":  "GLOBAL_HUMAN_RESOURCES",
+                                                     "ObjectSource":  "ADF_BC",
+                                                     "Category":  null,
+                                                     "RestResourcePath":  "/hcmRestApi/resources/11.13.18.05/workers",
+                                                     "RestResourceIdentifier":  "-1",
+                                                     "RestSupportedOperations":  "{}",
+                                                     "ParentSupptObjectId":  null,
+                                                     "MandatoryFlag":  false,
+                                                     "SeededFlag":  false,
+                                                     "ObjectDisplayName":  "HS2 Contract End Submit Termination",
+                                                     "Name":  "HS2 Contract End Submit Termination",
+                                                     "Description":  "Submit work relationship termination for contingent worker contract end changes."
+                                                 }
+                                             ],
+                         "agentNodes":  [
+
+                                        ],
+                         "workflowNodes":  [
+
+                                           ],
+                         "documentProcessorNodes":  [
+
+                                                    ],
+                         "ragDocumentToolNodes":  [
+
+                                                  ],
+                         "toolNodes":  [
+                                           {
+                                               "Version":  1,
+                                               "Namespace":  "COMMON.OTHER",
+                                               "UserInputMsg":  null,
+                                               "Specification":  null,
+                                               "ToolCode":  "ORA_USER_SESSION_TOOL",
+                                               "Name":  "GetUserSession",
+                                               "Type":  "USER_SESSION",
+                                               "Description":  "Tool that fetches the PersonNumber of the logged in user.",
+                                               "Family":  "COMMON",
+                                               "HiddenFlag":  false,
+                                               "Product":  "OTHER",
+                                               "UserInputRequiredFlag":  false,
+                                               "ModuleId":  "074F58CB6E686D21E0634CA56C64F55F",
+                                               "SeededFlag":  true
+                                           }
+                                       ],
+                         "externalRestNodes":  [
+
+                                               ]
+                     },
+    "WorkflowCode":  "HS2_CONTRACT_END_AGENT_HRSS",
+    "Name":  "HS2 - Contract End Agent HRSS",
+    "Description":  "HS2 HRSS action agent for updating a CONTINGENT worker\u0027s contract / projected end date in Oracle HCM. Looks up the contingent work relationship, confirms with the HRSS user (human-in-the-loop), then updates the projected end date. Guarded to contingent workers only. [V5: form+confirm+write pattern cloned from Reporting Line V20]",
+    "Family":  "HCM",
+    "Product":  "GLOBAL_HUMAN_RESOURCES",
+    "HiddenFlag":  false,
+    "AiAppsCompatibleFlag":  true,
+    "UseCaseId":  "NA",
+    "SourceWorkflowId":  null,
+    "AccessModifier":  "public",
+    "StartQuestionOne":  "Contract end date: provide the contingent worker name or number and the new projected end date",
+    "StartQuestionTwo":  "Extend a contractor end date: provide the worker and the new projected end date",
+    "StartQuestionThree":  "Set the projected end date for a contingent worker: provide worker name or number and the date",
+    "FollowUpPromptEnabledFlag":  true,
+    "FollowUpPrompt":  "After a contract end date is updated, you might also ask: review the contingent work relationship, start another contract end date update for a different worker, or confirm the new projected end date. This agent updates contingent workers only. Always restate the worker, the current and new end date before submitting, and only proceed after explicit approval.",
+    "Architecture":  "data_pipeline",
+    "MaximumInteractions":  null,
+    "StartAgentId":  null,
+    "agents":  [
+
+               ],
+    "agentMappings":  [
+
+                      ],
+    "partnerMetadata":  {
+                            "Description":  "",
+                            "Name":  "HS2 - Contract End Agent HRSS"
+                        }
+}
