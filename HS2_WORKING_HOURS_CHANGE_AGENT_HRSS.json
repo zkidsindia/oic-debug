@@ -1,0 +1,1174 @@
+﻿{
+    "Specification":  {
+                          "dataPipeline":  {
+                                               "pipelineNodes":  [
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "description":  "Start of data pipeline",
+                                                                                          "name":  "Start"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "919000001"
+                                                                                      },
+                                                                         "code":  "START",
+                                                                         "id":  "start",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "type":  "START"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "description":  "End of data pipeline",
+                                                                                          "name":  "End"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "END",
+                                                                         "id":  "end",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "type":  "END"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Parse Working Hours Change Request"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100000000002"
+                                                                                      },
+                                                                         "code":  "PARSE_WORKING_HOURS_CHANGE_REQUEST",
+                                                                         "id":  "9100000000001",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000001_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "You are an HRSS Working Hours Change workflow intake agent.\n\nReference date: {{$context.$system.$currentDate}}\nOriginal user message: {{$context.$system.$inputMessage}}\nConversation so far (use to accumulate details already provided and to detect confirmation): {{$context.$system.$chatHistory}}\n\nSupported workflow goal only:\n- Change working hours for a worker.\n\nThis workflow updates the worker active primary assignment using an effective-dated PATCH operation.\n\nRequired inputs:\n- workerPersonNumber: the employee/worker identifier. Accept a worker person number or exact worker display name.\n- effectiveDate: YYYY-MM-DD. Do not default this unless the user explicitly says today/tomorrow or provides a date.\n- reasonCode: Flexible Working Request Accepted or Flexible Working Request Declined. Normalize to one of these codes only:\n  - HS2_HOURS_FLEX_WORK_ACCEPT for Flexible Working Request Accepted, accepted, approve, approved, approval, flex work accepted.\n  - HS2_HOURS_FLEX_WORK_DECLINE for Flexible Working Request Declined, declined, rejected, reject, not accepted, flex work declined.\n- normalHours: numeric working hours value for NormalHours.\n- frequency: working hours frequency. Accept Daily, Weekly, Biweekly, Semimonthly, Monthly, or Yearly. Normalize to frequencyCode using this map: Daily=D, Weekly=W, Biweekly=BW, Semimonthly=SM, Monthly=M, Yearly=Y.\n- fullPartTime: Full Time or Part Time. Normalize to FULL_TIME or PART_TIME.\n- workAtHomeFlag: Yes or No. Normalize to true for Yes and false for No.\n\nAllowed required input fields are limited to these seven fields only: workerPersonNumber, effectiveDate, reasonCode, normalHours, frequency, fullPartTime, and workAtHomeFlag. Do not request any other fields in missingFields or crossQuestion. Do not reuse any stored missingFields or crossQuestion from an earlier revision.\n\nPayload rules:\n- ActionCode is WORK_HOURS_CHANGE.\n- The update payload must contain only ActionCode, Frequency, NormalHours, ReasonCode, WorkAtHomeFlag, and FullPartTime.\n\nExtraction rules:\n- FORM SUBMISSIONS: if the original user message contains an oraFormSubmit tag followed by a JSON array of id/value pairs, this is a submitted Working Hours Change form. Read the values directly: the worker field is workerPersonNumber, the normalHours field is normalHours, the frequency field is frequency, the fullPartTime field is fullPartTime, the workAtHomeFlag field is workAtHomeFlag, the reasonCode field is reasonCode, and the effectiveDate field is effectiveDate. A numeric worker value is a person number; a non-numeric value is an exact display name. Ignore the formContext field. A submitted form is a fresh request, not a confirmation: it is NEVER unclear and NEVER unsupported — always set intent to exactly working_hours_change, set isConfirmed to false, set crossQuestion to null, and set readyToProceed true when all required fields are present (empty optional fields are fine).\n- CONFIRM ACTIONS: if the original user message is a JSON payload whose action value is confirmHoursChange, the user clicked Confirm on the change summary already shown. Set isConfirmed to true and readyToProceed to true, no matter what any field inside the payload says. Take the business field values from the payload fields of the same names when present, then from the conversation. Never ask a follow-up question for a confirmHoursChange payload.\n\n- Use the original user message and any additional user feedback together to build the latest request.\n- Interpret working hours, work hours, hours change, flex working hours, flexible working request hours, and contracted hours as the supported working hours change intent.\n- Never invent person numbers or names. If the user gives a name, keep the exact name as provided in workerPersonNumber. If the user gives a person number, keep the person number as provided.\n- Effective date must be normalized to YYYY-MM-DD using the reference date.\n- If the request is not about changing working hours, set intent to \"unclear\".\n- Validate numeric fields. normalHours must be a positive number.\n- Validate frequency values strictly against Daily, Weekly, Biweekly, Semimonthly, Monthly, and Yearly. If the user gives the REST code D, W, BW, SM, M, or Y, accept it and populate both the label and code.\n- Validate fullPartTime strictly as FULL_TIME or PART_TIME after normalization.\n- Validate workAtHomeFlag strictly as true or false after normalization.\n\nMissing-details wording rule:\n- When readyToProceed is false because any required input is missing, crossQuestion must be exactly: Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No.\n- Do not add any other requested fields to crossQuestion.\n\nOutput JSON only:\n{\n  \"intent\": \"working_hours_change|unclear\",\n  \"workerPersonNumber\": \"string|null\",\n  \"effectiveDate\": \"YYYY-MM-DD|null\",\n  \"reasonCode\": \"HS2_HOURS_FLEX_WORK_ACCEPT|HS2_HOURS_FLEX_WORK_DECLINE|null\",\n  \"reasonLabel\": \"Flexible Working Request Accepted|Flexible Working Request Declined|null\",\n  \"normalHours\": number|null,\n  \"frequency\": \"Daily|Weekly|Biweekly|Semimonthly|Monthly|Yearly|null\",\n  \"frequencyCode\": \"D|W|BW|SM|M|Y|null\",\n  \"fullPartTime\": \"FULL_TIME|PART_TIME|null\",\n  \"workAtHomeFlag\": true|false|null,\n  \"readyToProceed\": true|false,\n  \"missingFields\": [\"field names\"],\n  \"crossQuestion\": \"string|null\",\n  \"summary\": \"short plain-English summary|null\"\n}\n\ncrossQuestion rules:\n- If intent is unclear, ask one concise question asking whether they want to change working hours.\n- If required information is missing, crossQuestion must use this exact text: Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No.\n- missingFields must contain only field names from this list: workerPersonNumber, effectiveDate, reasonCode, normalHours, frequency, fullPartTime, workAtHomeFlag.\n- Never ask for any fields outside that list. Include already captured fields only in summary, not in crossQuestion.\n- If validation fails, ask for the invalid field again and state the allowed values.\n- If readyToProceed is true, crossQuestion must be null.\n\nCONFIRMATION DETECTION (critical):\n- Also output a boolean field isConfirmed.\n- Use the full conversation above. Set isConfirmed to true ONLY IF a previous assistant turn already presented a confirmation summary of the exact change AND the user\u0027s latest message is an affirmative approval (for example: confirm, yes, proceed, go ahead, do it, approved).\n- Otherwise set isConfirmed to false. Never treat the initial request as confirmation. Do not write any change until isConfirmed is true."
+                                                                                        }
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"$schema\": \"http://json-schema.org/draft-04/schema#\", \"type\": \"object\", \"additionalProperties\": false, \"properties\": {\"intent\": {\"type\": \"string\"}, \"workerPersonNumber\": {\"type\": [\"string\", \"null\"]}, \"effectiveDate\": {\"type\": [\"string\", \"null\"]}, \"reasonCode\": {\"type\": [\"string\", \"null\"]}, \"reasonLabel\": {\"type\": [\"string\", \"null\"]}, \"normalHours\": {\"type\": [\"number\", \"string\", \"null\"]}, \"frequency\": {\"type\": [\"string\", \"null\"]}, \"frequencyCode\": {\"type\": [\"string\", \"null\"]}, \"fullPartTime\": {\"type\": [\"string\", \"null\"]}, \"workAtHomeFlag\": {\"type\": [\"boolean\", \"string\", \"null\"]}, \"readyToProceed\": {\"type\": \"boolean\"}, \"missingFields\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"crossQuestion\": {\"type\": [\"string\", \"null\"]}, \"summary\": {\"type\": [\"string\", \"null\"]}, \"isConfirmed\": {\"type\": \"boolean\"}}, \"required\": [\"intent\", \"workerPersonNumber\", \"effectiveDate\", \"reasonCode\", \"reasonLabel\", \"normalHours\", \"frequency\", \"frequencyCode\", \"fullPartTime\", \"workAtHomeFlag\", \"readyToProceed\", \"missingFields\", \"crossQuestion\", \"summary\"]}",
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Set Working Hours Change Request"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100000000003"
+                                                                                      },
+                                                                         "code":  "SET_WORKING_HOURS_CHANGE_REQUEST",
+                                                                         "id":  "9100000000002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000002_1",
+                                                                                            "name":  "vWorkingHoursChangeRequest",
+                                                                                            "scope":  "JOB",
+                                                                                            "type":  "object",
+                                                                                            "value":  "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "SET_FIELDS"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If Working Hours Request Unclear"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "961000007",
+                                                                                          "false":  "9100000000005"
+                                                                                      },
+                                                                         "code":  "IF_WORKING_HOURS_REQUEST_UNCLEAR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000003",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000003_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.intent !== \u0027working_hours_change\u0027}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Working Hours Request Unclear"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_WORKING_HOURS_REQUEST_UNCLEAR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000004",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000004_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.crossQuestion}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If Working Hours Required Info Missing"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "961000008",
+                                                                                          "false":  "9100000000010"
+                                                                                      },
+                                                                         "code":  "IF_WORKING_HOURS_REQUIRED_INFO_MISSING",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000005",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000005_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.intent === \u0027working_hours_change\u0027 \u0026\u0026 ((!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.workerPersonNumber) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.effectiveDate) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.reasonCode) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.normalHours === null) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.normalHours === undefined) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.frequencyCode) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.fullPartTime) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.workAtHomeFlag === null) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.workAtHomeFlag === undefined))}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Working Hours Request Cancelled"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_WORKING_HOURS_REQUEST_CANCELLED",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000007",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000007_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Working hours change request cancelled. No changes were made."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Working Hours Worker Lookup Query",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var reqNode = $context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST;\nvar req = new Object();\nif (reqNode \u0026\u0026 reqNode.$output) {\n  req = reqNode.$output;\n}\n\nvar asString = (v) =\u003e {\n  if (v === null || v === undefined) return \u0027\u0027;\n  return String(v).trim();\n};\n\nvar escapeQueryLiteral = (v) =\u003e {\n  return asString(v).split(\"\u0027\").join(\"\u0027\u0027\");\n};\n\nvar hasAnyWhitespace = (s) =\u003e {\n  var text = asString(s);\n  for (var i = 0; i \u003c text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c === 9 || c === 10 || c === 11 || c === 12 || c === 13 || c === 32) return true;\n  }\n  return false;\n};\n\nvar hasAnyDigit = (s) =\u003e {\n  var text = asString(s);\n  for (var i = 0; i \u003c text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c \u003e= 48 \u0026\u0026 c \u003c= 57) return true;\n  }\n  return false;\n};\n\nvar makeLookupResult = (query, mode, input) =\u003e {\n  var result = new Object();\n  result.query = query;\n  result.mode = mode;\n  result.input = input;\n  return result;\n};\n\nvar buildWorkerQuery = (inputValue) =\u003e {\n  var raw = asString(inputValue);\n  if (!raw) {\n    return makeLookupResult(null, \u0027MISSING\u0027, raw);\n  }\n  var escaped = escapeQueryLiteral(raw);\n  var personNumberLike = (!hasAnyWhitespace(raw) \u0026\u0026 hasAnyDigit(raw));\n  if (personNumberLike) {\n    return makeLookupResult(\"PersonNumber=\u0027\" + escaped + \"\u0027\", \u0027PERSON_NUMBER\u0027, raw);\n  }\n  return makeLookupResult(\"UPPER(DisplayName)=UPPER(\u0027\" + escaped + \"\u0027)\", \u0027DISPLAY_NAME\u0027, raw);\n};\n\nvar target = buildWorkerQuery(req.workerPersonNumber);\nvar errors = [];\nif (!target.query) errors.push(\u0027Worker name or number is required.\u0027);\n\nvar output = new Object();\noutput.hasError = errors.length \u003e 0;\noutput.errors = errors;\noutput.targetWorkerQuery = target.query;\noutput.targetLookupMode = target.mode;\noutput.targetLookupText = target.input;\nreturn output;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100000000011"
+                                                                                      },
+                                                                         "code":  "BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1",
+                                                                         "id":  "9100000000010",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "businessObjectCode":  "HS2_HCM_WORKING_HOURS_CHANGE_WORKERS",
+                                                                                          "functionName":  "get_worker_working_hours_change_details",
+                                                                                          "name":  "Get Working Hours Target Worker"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100000000012"
+                                                                                      },
+                                                                         "code":  "GET_WORKING_HOURS_TARGET_WORKER",
+                                                                         "id":  "9100000000011",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000011_1",
+                                                                                            "name":  "workerQuery",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result.targetWorkerQuery}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9100000000011_2",
+                                                                                            "name":  "effectiveDate",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$system.$currentDate}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "outputSpecification":  "{}",
+                                                                         "type":  "BO_FUNCTION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Working Hours Change Context",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const req = $context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output || {};\nconst targetResponse = $context.$nodes.GET_WORKING_HOURS_TARGET_WORKER.$output || {};\nconst lookupDate = $context.$system.$currentDate;\nconst updateDate = req.effectiveDate;\nconst lookupCtx = ($context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1 \u0026\u0026 $context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output \u0026\u0026 $context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result) ? $context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result : {};\n\nconst itemsOf = (response) =\u003e {\n  if (!response) return [];\n  if (Array.isArray(response.items)) return response.items;\n  if (Array.isArray(response.Items)) return response.Items;\n  return [];\n};\n\nconst childItems = (obj, prop) =\u003e {\n  if (!obj) return [];\n  const v = obj[prop];\n  if (Array.isArray(v)) return v;\n  if (v \u0026\u0026 Array.isArray(v.items)) return v.items;\n  if (v \u0026\u0026 Array.isArray(v.Items)) return v.Items;\n  return [];\n};\n\nconst firstNonBlank = (vals) =\u003e {\n  for (let i = 0; i \u003c vals.length; i++) {\n    const v = vals[i];\n    if (v !== null \u0026\u0026 v !== undefined \u0026\u0026 String(v).trim() !== \u0027\u0027) return v;\n  }\n  return null;\n};\n\nconst upper = (v) =\u003e String(v === null || v === undefined ? \u0027\u0027 : v).trim().toUpperCase();\nconst asString = (v) =\u003e (v === null || v === undefined) ? \u0027\u0027 : String(v).trim();\n\nconst numberOrNull = (v) =\u003e {\n  if (v === null || v === undefined || String(v).trim() === \u0027\u0027) return null;\n  const n = Number(v);\n  return isFinite(n) ? n : null;\n};\n\nconst displayNameFromNameItem = (n) =\u003e {\n  if (!n) return null;\n  return firstNonBlank([\n    n.FullName,\n    n.DisplayName,\n    n.ListName,\n    n.Name,\n    (firstNonBlank([n.FirstName, n.GivenName]) \u0026\u0026 firstNonBlank([n.LastName, n.FamilyName])) ? (firstNonBlank([n.FirstName, n.GivenName]) + \u0027 \u0027 + firstNonBlank([n.LastName, n.FamilyName])) : null\n  ]);\n};\n\nconst displayName = (person) =\u003e {\n  if (!person) return null;\n  const names = childItems(person, \u0027names\u0027);\n  let primaryName = null;\n  let globalName = null;\n  let anyName = null;\n  for (let i = 0; i \u003c names.length; i++) {\n    const n = names[i] || {};\n    const dn = displayNameFromNameItem(n);\n    if (!dn) continue;\n    if (!anyName) anyName = dn;\n    if (!primaryName \u0026\u0026 (n.PrimaryFlag === true || upper(n.PrimaryFlag) === \u0027TRUE\u0027 || upper(n.PrimaryFlag) === \u0027Y\u0027)) primaryName = dn;\n    if (!globalName \u0026\u0026 (upper(n.NameType) === \u0027GLOBAL\u0027 || upper(n.NameType) === \u0027GLOBAL_NAME\u0027)) globalName = dn;\n  }\n  return firstNonBlank([\n    person.DisplayName,\n    person.displayName,\n    person.PersonDisplayName,\n    person.FullName,\n    person.Name,\n    person.PersonName,\n    primaryName,\n    globalName,\n    anyName,\n    person.PersonNumber\n  ]);\n};\n\nconst directLinksOf = (item) =\u003e {\n  if (!item) return [];\n  let links = [];\n  if (Array.isArray(item.links)) links = links.concat(item.links);\n  if (Array.isArray(item.Links)) links = links.concat(item.Links);\n  return links;\n};\n\nconst contextLinksOf = (item) =\u003e {\n  if (!item) return [];\n  let links = [];\n  const c = item[\u0027@context\u0027] || item.context || item.Context || null;\n  if (c \u0026\u0026 Array.isArray(c.links)) links = links.concat(c.links);\n  if (c \u0026\u0026 Array.isArray(c.Links)) links = links.concat(c.Links);\n  return links;\n};\n\nconst keyLooksLikeOpaqueHrefKey = (key) =\u003e {\n  const k = asString(key);\n  if (!k) return false;\n  if (k.indexOf(\u0027,\u0027) \u003e= 0 || k.indexOf(\u0027%2C\u0027) \u003e= 0 || k.indexOf(\u0027%2c\u0027) \u003e= 0) return false;\n  if (/^\\d+$/.test(k)) return true;\n  return /^[0-9A-Fa-f]{40,}$/.test(k);\n};\n\nconst leftPad = (text, length, padChar) =\u003e {\n  let s = asString(text);\n  const p = asString(padChar) || \u00270\u0027;\n  while (s.length \u003c length) s = p + s;\n  return s;\n};\n\nconst numericIdFromEffectiveDatedKey = (key) =\u003e {\n  const k = asString(key);\n  if (!k) return null;\n  const decoded = k.replace(/%2C/gi, \u0027,\u0027);\n  const first = decoded.split(\u0027,\u0027)[0];\n  if (/^\\d+$/.test(first)) return first;\n  return null;\n};\n\nconst dateToUtcMidnightMillisHex = (dateText) =\u003e {\n  const d = asString(dateText);\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(d);\n  if (!m) return null;\n  const y = Number(m[1]);\n  const mo = Number(m[2]);\n  const day = Number(m[3]);\n  const millis = Date.UTC(y, mo - 1, day);\n  if (!isFinite(millis)) return null;\n  return leftPad(millis.toString(16).toUpperCase(), 16, \u00270\u0027);\n};\n\nconst oracleOpaqueKeyFromIdAndDate = (numericId, dateText) =\u003e {\n  const idText = asString(numericId);\n  if (!/^\\d+$/.test(idText)) return null;\n  const idNumber = Number(idText);\n  if (!isFinite(idNumber)) return null;\n  const idHex = leftPad(idNumber.toString(16).toUpperCase(), 13, \u00270\u0027);\n  const dateHex = dateToUtcMidnightMillisHex(dateText);\n  if (!dateHex) return null;\n  return \u002700020000000EACED00057708000\u0027 +\n    idHex +\n    \u00270000004AACED00057372000D6A6176612E73716C2E4461746514FA46683F3566970200007872000E6A6176612E7574696C2E44617465686A81014B59741903000078707708\u0027 +\n    dateHex +\n    \u002778\u0027;\n};\n\nconst resolveOpaqueKey = (rawKey, numericId, lookupDateForKey, label, warnings) =\u003e {\n  if (keyLooksLikeOpaqueHrefKey(rawKey)) {\n    return { key: rawKey, source: \u0027raw_href\u0027, rawKey: rawKey };\n  }\n  const idCandidate = firstNonBlank([numericId, numericIdFromEffectiveDatedKey(rawKey)]);\n  const generated = oracleOpaqueKeyFromIdAndDate(idCandidate, lookupDateForKey);\n  if (generated \u0026\u0026 keyLooksLikeOpaqueHrefKey(generated)) {\n    warnings.push(label + \u0027 REST key was generated from numeric ID \u0027 + idCandidate + \u0027 and lookup effective date \u0027 + lookupDateForKey + \u0027 because Agent Studio returned a transformed effective-dated key instead of the raw href key.\u0027);\n    return { key: generated, source: \u0027generated_from_numeric_id_and_lookup_date\u0027, rawKey: rawKey };\n  }\n  return { key: rawKey, source: rawKey ? \u0027unusable_transformed_key\u0027 : \u0027not_found\u0027, rawKey: rawKey };\n};\n\nconst keyAfterSegment = (href, segment) =\u003e {\n  if (!href || !segment) return null;\n  const marker = \u0027/\u0027 + segment + \u0027/\u0027;\n  const text = String(href);\n  const idx = text.indexOf(marker);\n  if (idx \u003c 0) return null;\n  const rest = text.substring(idx + marker.length);\n  const key = rest.split(\u0027/\u0027)[0].split(\u0027?\u0027)[0];\n  return key || null;\n};\n\nconst keyFromLinks = (links, segment, expectedName) =\u003e {\n  let fallback = null;\n  for (let i = 0; i \u003c links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const name = asString(l.name);\n    if (expectedName \u0026\u0026 name \u0026\u0026 name !== expectedName) continue;\n    const rel = asString(l.rel).toLowerCase();\n    const key = keyAfterSegment(l.href, segment);\n    if (!key) continue;\n    if ((rel === \u0027self\u0027 || rel === \u0027canonical\u0027) \u0026\u0026 keyLooksLikeOpaqueHrefKey(key)) return key;\n    if (!fallback) fallback = key;\n  }\n  for (let i = 0; i \u003c links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const key = keyAfterSegment(l.href, segment);\n    if (keyLooksLikeOpaqueHrefKey(key)) return key;\n  }\n  return fallback;\n};\n\nconst keyFromItem = (item, segment, expectedName) =\u003e {\n  const directKey = keyFromLinks(directLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(directKey)) return directKey;\n  const contextKey = keyFromLinks(contextLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(contextKey)) return contextKey;\n  return directKey || contextKey;\n};\n\nconst isDateInRange = (date, start, end) =\u003e {\n  const d = asString(date);\n  const s = asString(start);\n  const e = asString(end);\n  if (!d) return true;\n  if (s \u0026\u0026 d \u003c s) return false;\n  if (e \u0026\u0026 d \u003e e) return false;\n  return true;\n};\n\nconst workRelIsActive = (rel, asOfDate) =\u003e {\n  if (!rel) return false;\n  const start = firstNonBlank([rel.StartDate, rel.EffectiveStartDate]);\n  const end = firstNonBlank([rel.TerminationDate, rel.ProjectedTerminationDate, rel.EffectiveEndDate, \u00274712-12-31\u0027]);\n  return isDateInRange(asOfDate, start, end);\n};\n\nconst workRelIsPrimary = (rel) =\u003e {\n  return rel \u0026\u0026 (rel.PrimaryFlag === true || upper(rel.PrimaryFlag) === \u0027TRUE\u0027 || upper(rel.PrimaryFlag) === \u0027Y\u0027);\n};\n\nconst assignmentIsPrimary = (a) =\u003e {\n  return a \u0026\u0026 (\n    a.PrimaryAssignmentFlag === true ||\n    a.AssignmentPrimaryFlag === true ||\n    a.PrimaryFlag === true ||\n    upper(a.PrimaryAssignmentFlag) === \u0027TRUE\u0027 ||\n    upper(a.AssignmentPrimaryFlag) === \u0027TRUE\u0027 ||\n    upper(a.PrimaryFlag) === \u0027TRUE\u0027 ||\n    upper(a.PrimaryAssignmentFlag) === \u0027Y\u0027 ||\n    upper(a.PrimaryFlag) === \u0027Y\u0027\n  );\n};\n\nconst assignmentIsActive = (a, asOfDate) =\u003e {\n  if (!a) return false;\n  const status = upper(firstNonBlank([a.AssignmentStatusType, a.AssignmentStatusTypeCode, a.AssignmentStatus, a.AssignmentStatusMeaning]));\n  const statusActive = !status || status.indexOf(\u0027ACTIVE\u0027) \u003e= 0 || status === \u0027ACT\u0027;\n  const inRange = isDateInRange(asOfDate, a.EffectiveStartDate, firstNonBlank([a.EffectiveEndDate, \u00274712-12-31\u0027]));\n  const latest = !a.EffectiveLatestChange || upper(a.EffectiveLatestChange) === \u0027Y\u0027 || upper(a.EffectiveLatestChange) === \u0027TRUE\u0027;\n  return statusActive \u0026\u0026 inRange \u0026\u0026 latest;\n};\n\nconst chooseWorkRelationship = (worker, asOfDate, errors, label) =\u003e {\n  const rels = childItems(worker, \u0027workRelationships\u0027);\n  if (!rels.length) return null;\n  const active = [];\n  for (let i = 0; i \u003c rels.length; i++) {\n    if (workRelIsActive(rels[i], asOfDate)) active.push(rels[i]);\n  }\n  const candidates = active.length ? active : rels;\n  const primaryActive = [];\n  for (let i = 0; i \u003c candidates.length; i++) {\n    if (workRelIsPrimary(candidates[i])) primaryActive.push(candidates[i]);\n  }\n  if (primaryActive.length === 1) return primaryActive[0];\n  if (active.length === 1) return active[0];\n  if (primaryActive.length \u003e 1) errors.push(\u0027More than one active primary work relationship was found for \u0027 + label + \u0027. Please resolve the duplicate work relationship before using the agent.\u0027);\n  else if (active.length \u003e 1) errors.push(\u0027More than one active work relationship was found for \u0027 + label + \u0027. Please resolve the duplicate work relationship before using the agent.\u0027);\n  return candidates[0];\n};\n\nconst chooseAssignment = (rel, asOfDate, errors, label) =\u003e {\n  const assignments = childItems(rel, \u0027assignments\u0027);\n  if (!assignments.length) return null;\n  const activePrimary = [];\n  const primary = [];\n  const active = [];\n  for (let i = 0; i \u003c assignments.length; i++) {\n    if (assignmentIsPrimary(assignments[i])) primary.push(assignments[i]);\n    if (assignmentIsActive(assignments[i], asOfDate)) active.push(assignments[i]);\n    if (assignmentIsPrimary(assignments[i]) \u0026\u0026 assignmentIsActive(assignments[i], asOfDate)) activePrimary.push(assignments[i]);\n  }\n  if (activePrimary.length === 1) return activePrimary[0];\n  if (activePrimary.length \u003e 1) errors.push(\u0027More than one active primary assignment was found for \u0027 + label + \u0027. Please resolve the duplicate assignment before using the agent.\u0027);\n  if (primary.length === 1) return primary[0];\n  if (active.length === 1) return active[0];\n  if (active.length \u003e 1) errors.push(\u0027More than one active assignment was found for \u0027 + label + \u0027. Please resolve the duplicate assignment before using the agent.\u0027);\n  return assignments[0];\n};\n\nconst frequencyCodeOf = (value) =\u003e {\n  const c = upper(value);\n  if (c === \u0027D\u0027 || c === \u0027W\u0027 || c === \u0027BW\u0027 || c === \u0027SM\u0027 || c === \u0027M\u0027 || c === \u0027Y\u0027) return c;\n  if (c === \u0027DAILY\u0027) return \u0027D\u0027;\n  if (c === \u0027WEEKLY\u0027) return \u0027W\u0027;\n  if (c === \u0027BIWEEKLY\u0027 || c === \u0027BI-WEEKLY\u0027) return \u0027BW\u0027;\n  if (c === \u0027SEMIMONTHLY\u0027 || c === \u0027SEMI-MONTHLY\u0027) return \u0027SM\u0027;\n  if (c === \u0027MONTHLY\u0027) return \u0027M\u0027;\n  if (c === \u0027YEARLY\u0027 || c === \u0027ANNUALLY\u0027 || c === \u0027ANNUAL\u0027) return \u0027Y\u0027;\n  return null;\n};\n\nconst frequencyLabel = (code) =\u003e {\n  const c = frequencyCodeOf(code);\n  if (c === \u0027D\u0027) return \u0027Daily\u0027;\n  if (c === \u0027W\u0027) return \u0027Weekly\u0027;\n  if (c === \u0027BW\u0027) return \u0027Biweekly\u0027;\n  if (c === \u0027SM\u0027) return \u0027Semimonthly\u0027;\n  if (c === \u0027M\u0027) return \u0027Monthly\u0027;\n  if (c === \u0027Y\u0027) return \u0027Yearly\u0027;\n  return code || null;\n};\n\nconst validFrequencyCode = (code) =\u003e {\n  return frequencyCodeOf(code) !== null;\n};\n\nconst validReasonCode = (code) =\u003e {\n  const c = upper(code);\n  return c === \u0027HS2_HOURS_FLEX_WORK_ACCEPT\u0027 || c === \u0027HS2_HOURS_FLEX_WORK_DECLINE\u0027;\n};\n\nconst validFullPartTime = (code) =\u003e {\n  const c = upper(code);\n  return c === \u0027FULL_TIME\u0027 || c === \u0027PART_TIME\u0027;\n};\n\nconst booleanValue = (v) =\u003e {\n  if (v === true || upper(v) === \u0027TRUE\u0027 || upper(v) === \u0027Y\u0027 || upper(v) === \u0027YES\u0027) return true;\n  if (v === false || upper(v) === \u0027FALSE\u0027 || upper(v) === \u0027N\u0027 || upper(v) === \u0027NO\u0027) return false;\n  return null;\n};\n\nconst assignmentField = (a, names) =\u003e {\n  for (let i = 0; i \u003c names.length; i++) {\n    if (a \u0026\u0026 a[names[i]] !== null \u0026\u0026 a[names[i]] !== undefined \u0026\u0026 String(a[names[i]]).trim() !== \u0027\u0027) return a[names[i]];\n  }\n  return null;\n};\n\nconst buildPayload = (r, normalizedFrequencyCode) =\u003e {\n  return {\n    ActionCode: \u0027WORK_HOURS_CHANGE\u0027,\n    Frequency: upper(normalizedFrequencyCode || r.frequencyCode),\n    NormalHours: numberOrNull(r.normalHours),\n    WorkAtHomeFlag: booleanValue(r.workAtHomeFlag),\n    FullPartTime: upper(r.fullPartTime)\n  };\n};\n\nconst targetItems = itemsOf(targetResponse);\nconst errors = [];\nconst warnings = [];\n\nconst lookupLabel = (person) =\u003e {\n  if (!person) return \u0027Name not available | Person Number: Not available\u0027;\n  const pn = firstNonBlank([person.PersonNumber, person.personNumber, \u0027Not available\u0027]);\n  const dn = displayName(person) || \u0027Name not available\u0027;\n  return dn + \u0027 | Person Number: \u0027 + pn;\n};\n\nconst duplicateListText = (items) =\u003e {\n  const rows = [];\n  for (let i = 0; i \u003c items.length; i++) rows.push(lookupLabel(items[i]));\n  return rows.join(\u0027; \u0027);\n};\n\nif (lookupCtx.hasError === true \u0026\u0026 lookupCtx.errors \u0026\u0026 lookupCtx.errors.length) {\n  for (let i = 0; i \u003c lookupCtx.errors.length; i++) errors.push(lookupCtx.errors[i]);\n}\n\nif (lookupCtx.targetLookupMode === \u0027DISPLAY_NAME\u0027 \u0026\u0026 targetItems.length \u003e 1) {\n  errors.push(\u0027Multiple workers were found for display name \u0027 + lookupCtx.targetLookupText + \u0027. Please rerun the request using the correct worker person number. Matches: \u0027 + duplicateListText(targetItems));\n}\n\nconst targetWorker = targetItems.length ? targetItems[0] : null;\nif (!targetWorker) errors.push(\u0027Target worker was not found for \u0027 + (lookupCtx.targetLookupText || req.workerPersonNumber) + \u0027.\u0027);\n\nlet targetRel = null;\nlet targetAssign = null;\nif (targetWorker) {\n  targetRel = chooseWorkRelationship(targetWorker, lookupDate, errors, \u0027target worker \u0027 + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetRel) errors.push(\u0027No work relationship was found for the target worker.\u0027);\n  targetAssign = chooseAssignment(targetRel, lookupDate, errors, \u0027target worker \u0027 + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetAssign) errors.push(\u0027No active primary assignment was found for the target worker.\u0027);\n}\n\nconst rawWorkersUniqID = targetWorker ? keyFromItem(targetWorker, \u0027workers\u0027, \u0027workers\u0027) : null;\nconst targetWorkerIdForKey = targetWorker ? firstNonBlank([targetWorker.PersonId, targetWorker.personId, numericIdFromEffectiveDatedKey(rawWorkersUniqID)]) : null;\nconst workerKeyResolution = targetWorker ? resolveOpaqueKey(rawWorkersUniqID, targetWorkerIdForKey, lookupDate, \u0027Worker\u0027, warnings) : { key: null, source: \u0027not_found\u0027, rawKey: null };\nconst workersUniqID = (asString(targetWorkerIdForKey) !== \u0027\u0027) ? asString(targetWorkerIdForKey) : workerKeyResolution.key;\nconst periodOfServiceId = firstNonBlank([targetRel \u0026\u0026 targetRel.PeriodOfServiceId, targetRel \u0026\u0026 targetRel.periodOfServiceId]);\nconst targetAssignmentId = firstNonBlank([targetAssign \u0026\u0026 targetAssign.AssignmentId, targetAssign \u0026\u0026 targetAssign.assignmentId]);\nconst rawAssignmentsUniqID = targetAssign ? keyFromItem(targetAssign, \u0027assignments\u0027, \u0027assignments\u0027) : null;\nconst assignmentIdForKey = firstNonBlank([targetAssignmentId, numericIdFromEffectiveDatedKey(rawAssignmentsUniqID)]);\nconst assignmentKeyResolution = targetAssign ? resolveOpaqueKey(rawAssignmentsUniqID, assignmentIdForKey, lookupDate, \u0027Assignment\u0027, warnings) : { key: null, source: \u0027not_found\u0027, rawKey: null };\nconst assignmentsUniqID = (asString(assignmentIdForKey) !== \u0027\u0027) ? asString(assignmentIdForKey) : assignmentKeyResolution.key;\nconst targetAssignmentNumber = firstNonBlank([targetAssign \u0026\u0026 targetAssign.AssignmentNumber, targetAssign \u0026\u0026 targetAssign.assignmentNumber, targetAssign \u0026\u0026 targetAssign.AssignmentName]);\n\nif (!workersUniqID) errors.push(\u0027The workersUniqID could not be resolved from the worker self link named workers.\u0027);\nif (workersUniqID \u0026\u0026 !keyLooksLikeOpaqueHrefKey(workersUniqID)) errors.push(\u0027The workersUniqID resolved to \u0027 + workersUniqID + \u0027, which is not usable. The agent could not generate an opaque REST key from PersonId \u0027 + targetWorkerIdForKey + \u0027 and lookup effective date \u0027 + lookupDate + \u0027.\u0027);\nif (!periodOfServiceId) errors.push(\u0027The PeriodOfServiceId could not be resolved from the active work relationship.\u0027);\nif (!assignmentsUniqID) errors.push(\u0027The assignmentsUniqID could not be resolved from the active primary assignment self link named assignments.\u0027);\nif (assignmentsUniqID \u0026\u0026 !keyLooksLikeOpaqueHrefKey(assignmentsUniqID)) errors.push(\u0027The assignmentsUniqID resolved to \u0027 + assignmentsUniqID + \u0027, which is not usable. The agent could not generate an opaque REST key from AssignmentId \u0027 + assignmentIdForKey + \u0027 and lookup effective date \u0027 + lookupDate + \u0027.\u0027);\n\nconst currentNormalHours = assignmentField(targetAssign, [\u0027NormalHours\u0027, \u0027normalHours\u0027, \u0027WorkingHours\u0027, \u0027workingHours\u0027]);\nconst currentFrequency = assignmentField(targetAssign, [\u0027Frequency\u0027, \u0027frequency\u0027]);\nconst currentFullPartTime = assignmentField(targetAssign, [\u0027FullPartTime\u0027, \u0027fullPartTime\u0027, \u0027FullPartTimeMeaning\u0027]);\nconst currentWorkAtHomeFlag = assignmentField(targetAssign, [\u0027WorkAtHomeFlag\u0027, \u0027workAtHomeFlag\u0027]);\n\nconst normalHours = numberOrNull(req.normalHours);\nconst requestFrequencyCode = frequencyCodeOf(firstNonBlank([req.frequencyCode, req.frequency]));\nconst workAtHome = booleanValue(req.workAtHomeFlag);\n\nif (!validReasonCode(req.reasonCode)) errors.push(\u0027Reason must be Flexible Working Request Accepted or Flexible Working Request Declined.\u0027);\nif (normalHours === null || normalHours \u003c= 0) errors.push(\u0027Working hours must be a positive numeric value.\u0027);\nif (!requestFrequencyCode) errors.push(\u0027Working hours frequency must be one of Daily, Weekly, Biweekly, Semimonthly, Monthly, or Yearly.\u0027);\nif (!validFullPartTime(req.fullPartTime)) errors.push(\u0027Full Time or Part Time must be provided as Full Time or Part Time.\u0027);\nif (workAtHome === null) errors.push(\u0027Working at Home must be Yes or No.\u0027);\n\nconst patchPayload = buildPayload(req, requestFrequencyCode);\n\nconst result = {\n  hasError: errors.length \u003e 0,\n  errors: errors,\n  warnings: warnings,\n  request: req,\n  lookupEffectiveDate: lookupDate,\n  updateEffectiveDate: updateDate,\n  workersUniqID: workersUniqID,\n  rawWorkersUniqID: rawWorkersUniqID,\n  workersUniqIDSource: workerKeyResolution.source,\n  periodOfServiceId: periodOfServiceId,\n  assignmentsUniqID: assignmentsUniqID,\n  rawAssignmentsUniqID: rawAssignmentsUniqID,\n  assignmentsUniqIDSource: assignmentKeyResolution.source,\n  targetWorkerName: displayName(targetWorker),\n  targetWorkerPersonNumber: firstNonBlank([targetWorker \u0026\u0026 targetWorker.PersonNumber, targetWorker \u0026\u0026 targetWorker.personNumber, req.workerPersonNumber]),\n  targetAssignmentId: targetAssignmentId,\n  targetAssignmentNumber: targetAssignmentNumber,\n  currentAssignment: {\n    normalHours: currentNormalHours,\n    frequency: frequencyLabel(currentFrequency),\n    frequencyCode: currentFrequency,\n    fullPartTime: currentFullPartTime,\n    workAtHomeFlag: currentWorkAtHomeFlag\n  },\n  proposedAssignment: {\n    actionCode: \u0027WORK_HOURS_CHANGE\u0027,\n    reasonCode: req.reasonCode,\n    reasonLabel: req.reasonLabel,\n    normalHours: normalHours,\n    frequency: frequencyLabel(requestFrequencyCode),\n    frequencyCode: upper(requestFrequencyCode),\n    fullPartTime: upper(req.fullPartTime),\n    workAtHomeFlag: workAtHome\n  },\n  workingHoursPayload: patchPayload,\n  effectiveHeaderPatch: \u0027RangeMode=UPDATE;RangeStartDate=\u0027 + updateDate + \u0027;RangeEndDate=4712-12-31\u0027\n};\n\nreturn result;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100000000013"
+                                                                                      },
+                                                                         "code":  "BUILD_WORKING_HOURS_CHANGE_CONTEXT",
+                                                                         "id":  "9100000000012",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If Working Hours Context Has Error"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "9100000000014",
+                                                                                          "false":  "9100000000016"
+                                                                                      },
+                                                                         "code":  "IF_WORKING_HOURS_CONTEXT_HAS_ERROR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000013",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000013_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.hasError === true}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Format Working Hours Context Error",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const errors = $context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.errors || [];\nlet message = \u0027I could not prepare the working hours change because:\u0027;\nfor (let i = 0; i \u003c errors.length; i++) {\n  message += \u0027\\n- \u0027 + errors[i];\n}\nreturn { message: message };"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "961000009"
+                                                                                      },
+                                                                         "code":  "FORMAT_WORKING_HOURS_CONTEXT_ERROR",
+                                                                         "id":  "9100000000014",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Working Hours Context Error"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_WORKING_HOURS_CONTEXT_ERROR",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000015",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000015_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.FORMAT_WORKING_HOURS_CONTEXT_ERROR.$output.result.message}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Working Hours Change Confirmation",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const ctx = $context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result;\nconst req = ctx.request || {};\n\nconst asString = (v) =\u003e (v === null || v === undefined) ? \u0027\u0027 : String(v).trim();\n\nconst displayValue = (v) =\u003e {\n  const s = asString(v);\n  return s ? s : \u0027Not available\u0027;\n};\n\nconst yesNo = (v) =\u003e {\n  if (v === true || asString(v).toUpperCase() === \u0027TRUE\u0027 || asString(v).toUpperCase() === \u0027Y\u0027) return \u0027Yes\u0027;\n  if (v === false || asString(v).toUpperCase() === \u0027FALSE\u0027 || asString(v).toUpperCase() === \u0027N\u0027) return \u0027No\u0027;\n  return displayValue(v);\n};\n\nconst fullPartTimeLabel = (v) =\u003e {\n  const s = asString(v).toUpperCase();\n  if (s === \u0027FULL_TIME\u0027) return \u0027Full Time\u0027;\n  if (s === \u0027PART_TIME\u0027) return \u0027Part Time\u0027;\n  return displayValue(v);\n};\n\nconst formatPerson = (name, personNumber, assignmentNumber) =\u003e {\n  const n = asString(name);\n  const pn = asString(personNumber);\n  const an = asString(assignmentNumber);\n  let label = n;\n  if (!label || label === pn || label === an) label = \u0027Name not available\u0027;\n  let out = label;\n  if (pn) out += \u0027 | Person Number: \u0027 + pn;\n  if (an) out += \u0027 | Assignment: \u0027 + an;\n  return out;\n};\n\nconst current = ctx.currentAssignment || {};\nconst proposed = ctx.proposedAssignment || {};\n\nlet msg = \u0027Confirm Working Hours Change\\n\\n\u0027;\nmsg += \u0027Request Summary\\n\u0027;\nmsg += \u0027- Employee: \u0027 + formatPerson(ctx.targetWorkerName, ctx.targetWorkerPersonNumber, ctx.targetAssignmentNumber) + \u0027\\n\u0027;\nmsg += \u0027- Effective Date: \u0027 + displayValue(req.effectiveDate) + \u0027\\n\u0027;\nmsg += \u0027- Reason: \u0027 + displayValue(proposed.reasonLabel || req.reasonCode) + \u0027\\n\\n\u0027;\n\nmsg += \u0027Current Assignment Values\\n\u0027;\nmsg += \u0027- Working Hours: \u0027 + displayValue(current.normalHours) + \u0027\\n\u0027;\nmsg += \u0027- Working Hours Frequency: \u0027 + displayValue(current.frequency || current.frequencyCode) + \u0027\\n\u0027;\nmsg += \u0027- Full Time or Part Time: \u0027 + fullPartTimeLabel(current.fullPartTime) + \u0027\\n\u0027;\nmsg += \u0027- Working at Home: \u0027 + yesNo(current.workAtHomeFlag) + \u0027\\n\\n\u0027;\n\nmsg += \u0027Proposed Assignment Values\\n\u0027;\nmsg += \u0027- Action Code: \u0027 + displayValue(proposed.actionCode) + \u0027\\n\u0027;\nmsg += \u0027- Reason Code: \u0027 + displayValue(proposed.reasonCode) + \u0027\\n\u0027;\nmsg += \u0027- Working Hours: \u0027 + displayValue(proposed.normalHours) + \u0027\\n\u0027;\nmsg += \u0027- Working Hours Frequency: \u0027 + displayValue(proposed.frequency) + \u0027 (\u0027 + displayValue(proposed.frequencyCode) + \u0027)\\n\u0027;\nmsg += \u0027- Full Time or Part Time: \u0027 + fullPartTimeLabel(proposed.fullPartTime) + \u0027\\n\u0027;\nmsg += \u0027- Working at Home: \u0027 + yesNo(proposed.workAtHomeFlag) + \u0027\\n\\n\u0027;\n\nmsg += \u0027Approval Action\\n\u0027;\nmsg += \u0027Click Approve to submit this working hours change to Oracle HCM. Click Reject to cancel without making any change.\u0027;\n\nvar cobj = new Object();\ncobj.action = \u0027confirmHoursChange\u0027;\n// carry the parsed request so the confirm leg needs nothing from history —\n// EXCLUDING bookkeeping fields (a stale isConfirmed:false poisons the confirm leg)\nvar rsrc = req || new Object();\nvar rskip = [\u0027isConfirmed\u0027, \u0027readyToProceed\u0027, \u0027summary\u0027, \u0027missingFields\u0027, \u0027crossQuestion\u0027, \u0027intent\u0027, \u0027parseError\u0027];\nvar rks = Object.keys(rsrc);\nfor (var ri = 0; ri \u003c rks.length; ri++) { var rk = rks[ri]; if (rskip.indexOf(rk) \u003e= 0) { continue; } if (cobj[rk] === undefined \u0026\u0026 rsrc[rk] !== null \u0026\u0026 typeof rsrc[rk] !== \u0027object\u0027) { cobj[rk] = rsrc[rk]; } }\nvar cstr = \u0027\u0027;\ntry { cstr = JSON.stringify(cobj); } catch (e) { cstr = \u0027\u0027; }\nvar confirmCommand = \u0027ora.Invoke(\"confirmHoursChange\", \u0027 + JSON.stringify(cstr) + \u0027)\u0027;\nvar csum = String(msg || \u0027\u0027);\nvar cut = csum.indexOf(\u0027Approval Action\u0027);\nif (cut \u003e 0) { csum = csum.slice(0, cut); }\nvar ccard = new Object();\nccard.title = \u0027Confirm Working Hours Change\u0027;\nccard.patternId = \u0027cardWidget\u0027;\nccard.description = \u0027Review the proposed change before it is written.\u0027;\nvar cp = new Object();\ncp.subject = \u0027Confirm Working Hours Change\u0027;\ncp.summary = csum;\ncp.badgeText = \u0027Needs confirmation\u0027;\ncp.variant = \u0027warning\u0027;\nvar clink = new Object();\nclink.text = \u0027Confirm Change\u0027;\nclink.action = confirmCommand;\ncp.link = clink;\nccard.properties = cp;\nvar bout = new Object();\nbout.message = msg;\nbout.confirmCommand = confirmCommand;\nbout.confirmCard = ccard;\nreturn bout;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100009002"
+                                                                                      },
+                                                                         "code":  "BUILD_WORKING_HOURS_CHANGE_CONFIRMATION",
+                                                                         "id":  "9100000000016",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "businessObjectCode":  "HS2_HCM_WORKING_HOURS_CHANGE_ASSIGNMENTS",
+                                                                                          "errorNodeId":  "9100000000021",
+                                                                                          "functionName":  "update_assignment_working_hours",
+                                                                                          "name":  "Patch Assignment Working Hours"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "9100000000021"
+                                                                                      },
+                                                                         "code":  "PATCH_ASSIGNMENT_WORKING_HOURS",
+                                                                         "id":  "9100000000019",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000019_1",
+                                                                                            "name":  "workersUniqID",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.workersUniqID}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9100000000019_2",
+                                                                                            "name":  "PeriodOfServiceId",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.periodOfServiceId}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9100000000019_3",
+                                                                                            "name":  "assignmentsUniqID",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.assignmentsUniqID}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9100000000019_4",
+                                                                                            "name":  "effectiveDate",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.effectiveDate}}"
+                                                                                        },
+                                                                                        {
+                                                                                            "id":  "9100000000019_5",
+                                                                                            "name":  "workingHoursPayload",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.workingHoursPayload}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "outputSpecification":  "{}",
+                                                                         "type":  "BO_FUNCTION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Final Working Hours Change Response",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "const ctx = $context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result;\nconst patchNode = $context.$nodes.PATCH_ASSIGNMENT_WORKING_HOURS || {};\n\nconst firstNonBlankLocal = (vals) =\u003e {\n  for (let i = 0; i \u003c vals.length; i++) {\n    const v = vals[i];\n    if (v !== null \u0026\u0026 v !== undefined \u0026\u0026 String(v).trim() !== \u0027\u0027) return v;\n  }\n  return null;\n};\n\nconst httpStatus = (n) =\u003e {\n  if (!n) return null;\n  const candidates = [\n    n.$output \u0026\u0026 n.$output.responseStatus,\n    n.$output \u0026\u0026 n.$output.output \u0026\u0026 n.$output.output.responseStatus,\n    n.$output \u0026\u0026 n.$output.result \u0026\u0026 n.$output.result.responseStatus,\n    n.responseStatus,\n    n.statusCode\n  ];\n  for (let i = 0; i \u003c candidates.length; i++) {\n    const v = candidates[i];\n    if (v !== null \u0026\u0026 v !== undefined \u0026\u0026 String(v).trim() !== \u0027\u0027 \u0026\u0026 !isNaN(Number(v))) return Number(v);\n  }\n  return null;\n};\n\nconst responseBody = (n) =\u003e {\n  if (!n) return null;\n  return firstNonBlankLocal([\n    n.$output \u0026\u0026 n.$output.response,\n    n.$output \u0026\u0026 n.$output.output \u0026\u0026 n.$output.output.response,\n    n.$output \u0026\u0026 n.$output.result \u0026\u0026 n.$output.result.response\n  ]);\n};\n\nconst errorText = (n) =\u003e {\n  if (!n) return null;\n  const st = httpStatus(n);\n  const body = responseBody(n);\n  if (st \u0026\u0026 st \u003e= 400) return \u0027HTTP \u0027 + st + (body ? \u0027: \u0027 + body : \u0027\u0027);\n  if (n.$error \u0026\u0026 n.$error.$info) return n.$error.$info;\n  if (n.$error \u0026\u0026 n.$error.info) return n.$error.info;\n  if (n.$error \u0026\u0026 n.$error.message) return n.$error.message;\n  if (n.$error \u0026\u0026 n.$error.$code) return n.$error.$code;\n  if (n.$output \u0026\u0026 n.$output.error) return n.$output.error;\n  return null;\n};\n\nconst statusText = (n) =\u003e n ? (n.$status || n.status || null) : null;\n\nconst isFailure = (n) =\u003e {\n  const stCode = httpStatus(n);\n  if (stCode \u0026\u0026 stCode \u003e= 400) return true;\n  const err = errorText(n);\n  if (err) return true;\n  const st = statusText(n);\n  if (!st) return false;\n  const s = String(st).toUpperCase();\n  return s.indexOf(\u0027FAIL\u0027) \u003e= 0 || s.indexOf(\u0027ERROR\u0027) \u003e= 0 || /^4\\d\\d/.test(s) || /^5\\d\\d/.test(s);\n};\n\nconst failed = isFailure(patchNode);\nconst proposed = ctx.proposedAssignment || {};\nlet msg = \u0027\u0027;\n\nif (!failed) {\n  msg += \u0027Working hours change submitted successfully.\\n\\n\u0027;\n} else {\n  msg += \u0027The working hours change could not be completed.\\n\\n\u0027;\n}\n\nmsg += \u0027Summary\\n\u0027;\nmsg += \u0027- Worker: \u0027 + (ctx.targetWorkerName || \u0027\u0027) + \u0027 (\u0027 + ctx.targetWorkerPersonNumber + \u0027)\\n\u0027;\nmsg += \u0027- Assignment: \u0027 + (ctx.targetAssignmentNumber || \u0027\u0027) + \u0027\\n\u0027;\nmsg += \u0027- Lookup Date: \u0027 + ctx.lookupEffectiveDate + \u0027\\n\u0027;\nmsg += \u0027- Update Effective Date: \u0027 + ctx.updateEffectiveDate + \u0027\\n\u0027;\nmsg += \u0027- Working Hours: \u0027 + proposed.normalHours + \u0027 \u0027 + (proposed.frequency || \u0027\u0027) + \u0027\\n\u0027;\nmsg += \u0027- Full Time or Part Time: \u0027 + proposed.fullPartTime + \u0027\\n\u0027;\nmsg += \u0027- Working at Home: \u0027 + (proposed.workAtHomeFlag === true ? \u0027Yes\u0027 : \u0027No\u0027) + \u0027\\n\\n\u0027;\nmsg += \u0027Operation status\\n\u0027;\nmsg += \u0027- Assignment Working Hours: \u0027 + (failed ? \u0027Failed\u0027 : \u0027Submitted\u0027);\nconst detail = errorText(patchNode);\nif (detail) msg += \u0027\\n  \u0027 + String(detail).replace(/Bad Request/gi, \u0027\u0027).replace(/[A-Z]{2,5}-\\d{3,}/g, \u0027\u0027).trim();\n\nreturn { message: msg, failures: failed ? 1 : 0 };"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "961000006"
+                                                                                      },
+                                                                         "code":  "FINAL_WORKING_HOURS_CHANGE_RESPONSE",
+                                                                         "id":  "9100000000021",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Return Final Working Hours Change Status"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_FINAL_WORKING_HOURS_CHANGE_STATUS",
+                                                                         "convergenceTargetId":  "end",
+                                                                         "id":  "9100000000022",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100000000022_1",
+                                                                                            "name":  "returnValue",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.FINAL_WORKING_HOURS_CHANGE_RESPONSE.$output.result.message}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Route Ora Message Hint"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "InitDisplay":  "919000007",
+                                                                                          "Summary":  "919000003",
+                                                                                          "InitActions":  "919000004",
+                                                                                          "InitSubtitle":  "919000005",
+                                                                                          "InitCommunications":  "919000006",
+                                                                                          "default":  "9100000000001",
+                                                                                          "InvokeAction":  "961000001"
+                                                                                      },
+                                                                         "code":  "ROUTE_ORA_HINT_V3",
+                                                                         "id":  "919000001",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "919000001_1",
+                                                                                            "name":  "caseExpression",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$app.$OraMessageHint}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "SWITCH"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Init Card Data",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var card = new Object();\ncard.title = \"Working Hours Advisor\";\ncard.summary = \"Change a worker\u0027s working hours, full-time or part-time status, or work-at-home settings. Enter a worker name or person number to begin; part of a name works.\";\ncard.actionText = \"Start Working Hours Change\";\ncard.followUpCommand = \"ora.Invoke(\\\"startHoursChange\\\", \\\"startHoursChange\\\")\";\nreturn card;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "919000002"
+                                                                                      },
+                                                                         "code":  "CS_INIT_CARD",
+                                                                         "id":  "919000007",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitDisplay"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_INIT_DISPLAY",
+                                                                         "id":  "919000002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "919000002_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Card data: {{$context.$nodes.CS_INIT_CARD.$output.result}}\n\nOutput exactly one Oracle information display block.\nUse the block name oraInfoDisplay and key hs2-working-hours-card.\nInside the block, return valid JSON with this widget shape, replacing every card.* token with the matching value from Card data:\n{\n  \"patternId\": \"cardWidget\",\n  \"config\": {\n    \"subject\": card.title,\n    \"summary\": card.summary,\n    \"badgeText\": \"Info\",\n    \"variant\": \"info\",\n    \"link\": {\n      \"text\": card.actionText,\n      \"action\": card.followUpCommand\n    }\n  }\n}\nRules:\n- Preserve the Card data title, summary, actionText, and followUpCommand exactly.\n- The link action must call the followUpCommand from Card data.\n- Do not create or return any oraInsight or priority action.\n- Do not add preamble, commentary, markdown, or code fences."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitSummary"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_SUMMARY",
+                                                                         "id":  "919000003",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "919000003_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "In no more than 50 words, state that the HS2 Working Hours advisor is ready and that it changes a worker\u0027s working hours, switches them between full time and part time, or updates the work-at-home flag or frequency, always confirming with the user before writing any change. Output only the sentence."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitActions"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_INIT_ACTIONS",
+                                                                         "id":  "919000004",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "919000004_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Do not create any priority actions for initial load. Output only an empty JSON array: []"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "GenerateSubTitle"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_SUBTITLE",
+                                                                         "id":  "919000005",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "919000005_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Output only this exact subtitle text and nothing else: Working Hours change - provide the worker and effective date to begin."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "ShowInitCommunications"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "CS_INIT_COMMS",
+                                                                         "id":  "919000006",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "919000006_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Output only this exact sentence and nothing else: No communications are required for this advisor."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Ask For Details"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_ASK_DETAILS_CONV",
+                                                                         "id":  "9100009001",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100009001_1",
+                                                                                            "name":  "message",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No.\n\nClick Request Changes to provide the missing details, or click Approve to cancel this working hours change request."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "If User Confirmed"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "true":  "9100000000019",
+                                                                                          "false":  "961000005"
+                                                                                      },
+                                                                         "code":  "IF_USER_CONFIRMED_CONV",
+                                                                         "id":  "9100009002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100009002_1",
+                                                                                            "name":  "condition",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.isConfirmed === true}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "CONDITION"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Confirmation Prompt"
+                                                                                      },
+                                                                         "outcomes":  {
+
+                                                                                      },
+                                                                         "code":  "RETURN_CONFIRM_PROMPT_CONV",
+                                                                         "id":  "9100009003",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "9100009003_1",
+                                                                                            "name":  "message",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONFIRMATION.$output.result.message}}\u003cbr\u003e\u003cbr\u003eReply \u003cb\u003econfirm\u003c/b\u003e to proceed, or \u003cb\u003ecancel\u003c/b\u003e to stop."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "RETURN"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Parse Ora Action",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var actionRaw = \u0027\u0027;\ntry { actionRaw = $context.$app.$OraAction; } catch (e) { actionRaw = null; }\nvar hasRaw = !(actionRaw === null || actionRaw === undefined || String(actionRaw).trim() === \u0027\u0027);\nif (!hasRaw) { try { actionRaw = $context.$system.$inputMessage; } catch (e) { actionRaw = null; } }\nvar s = (actionRaw === null || actionRaw === undefined) ? \u0027\u0027 : String(actionRaw);\nvar v = \u0027\u0027;\nif (s.indexOf(\u0027submitHoursChange\u0027) \u003e= 0) v = \u0027submitHoursChange\u0027;\nelse if (s.indexOf(\u0027startHoursChange\u0027) \u003e= 0) v = \u0027startHoursChange\u0027;\nelse if (s.indexOf(\u0027confirmHoursChange\u0027) \u003e= 0) v = \u0027confirmHoursChange\u0027;\nvar pout = new Object();\npout.verb = v || \u0027fallthrough\u0027;\nreturn pout;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "961000002"
+                                                                                      },
+                                                                         "code":  "PARSE_ORA_ACTION_961",
+                                                                         "id":  "961000001",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Route Parsed Action"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "startHoursChange":  "961000003",
+                                                                                          "submitHoursChange":  "9100000000001",
+                                                                                          "confirmHoursChange":  "9100000000001",
+                                                                                          "default":  "9100000000001"
+                                                                                      },
+                                                                         "code":  "ROUTE_PARSED_ACTION_961",
+                                                                         "id":  "961000002",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000002_1",
+                                                                                            "name":  "caseExpression",
+                                                                                            "type":  "string",
+                                                                                            "value":  "{{$context.$nodes.PARSE_ORA_ACTION_961.$output.result.verb}}"
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "SWITCH"
+                                                                     },
+                                                                     {
+                                                                         "metadata":  {
+                                                                                          "name":  "Build Working Hours Change Form",
+                                                                                          "returnType":  "object",
+                                                                                          "sourceCode":  "var s = (v) =\u003e (v === null || v === undefined) ? \u0027\u0027 : String(v).trim();\nvar today = \u0027\u0027;\ntry { today = s($context.$system.$currentDate); } catch (e) { today = \u0027\u0027; }\nvar fields = [];\nvar f0 = new Object();\nf0.id = \u0027worker\u0027;\nf0.type = \u0027text\u0027;\nf0.label = \u0027Worker\u0027;\nf0.value = \u0027\u0027;\nfields.push(f0);\nvar f1 = new Object();\nf1.id = \u0027normalHours\u0027;\nf1.type = \u0027number\u0027;\nf1.label = \u0027Working Hours\u0027;\nf1.value = \u0027\u0027;\nfields.push(f1);\nvar f2 = new Object();\nf2.id = \u0027frequency\u0027;\nf2.type = \u0027select\u0027;\nf2.label = \u0027Frequency\u0027;\nf2.value = \u0027Weekly\u0027;\nvar f2o = [];\nvar f2o0 = new Object();\nf2o0.value = \u0027Daily\u0027;\nf2o0.label = \u0027Daily\u0027;\nf2o.push(f2o0);\nvar f2o1 = new Object();\nf2o1.value = \u0027Weekly\u0027;\nf2o1.label = \u0027Weekly\u0027;\nf2o.push(f2o1);\nvar f2o2 = new Object();\nf2o2.value = \u0027Biweekly\u0027;\nf2o2.label = \u0027Biweekly\u0027;\nf2o.push(f2o2);\nvar f2o3 = new Object();\nf2o3.value = \u0027Semimonthly\u0027;\nf2o3.label = \u0027Semimonthly\u0027;\nf2o.push(f2o3);\nvar f2o4 = new Object();\nf2o4.value = \u0027Monthly\u0027;\nf2o4.label = \u0027Monthly\u0027;\nf2o.push(f2o4);\nvar f2o5 = new Object();\nf2o5.value = \u0027Yearly\u0027;\nf2o5.label = \u0027Yearly\u0027;\nf2o.push(f2o5);\nf2.options = f2o;\nfields.push(f2);\nvar f3 = new Object();\nf3.id = \u0027fullPartTime\u0027;\nf3.type = \u0027select\u0027;\nf3.label = \u0027Full Time or Part Time\u0027;\nf3.value = \u0027Full Time\u0027;\nvar f3o = [];\nvar f3o0 = new Object();\nf3o0.value = \u0027Full Time\u0027;\nf3o0.label = \u0027Full Time\u0027;\nf3o.push(f3o0);\nvar f3o1 = new Object();\nf3o1.value = \u0027Part Time\u0027;\nf3o1.label = \u0027Part Time\u0027;\nf3o.push(f3o1);\nf3.options = f3o;\nfields.push(f3);\nvar f4 = new Object();\nf4.id = \u0027workAtHomeFlag\u0027;\nf4.type = \u0027select\u0027;\nf4.label = \u0027Working at Home\u0027;\nf4.value = \u0027No\u0027;\nvar f4o = [];\nvar f4o0 = new Object();\nf4o0.value = \u0027Yes\u0027;\nf4o0.label = \u0027Yes\u0027;\nf4o.push(f4o0);\nvar f4o1 = new Object();\nf4o1.value = \u0027No\u0027;\nf4o1.label = \u0027No\u0027;\nf4o.push(f4o1);\nf4.options = f4o;\nfields.push(f4);\nvar f5 = new Object();\nf5.id = \u0027reasonCode\u0027;\nf5.type = \u0027select\u0027;\nf5.label = \u0027Flexible Working Request\u0027;\nf5.value = \u0027Flexible Working Request Accepted\u0027;\nvar f5o = [];\nvar f5o0 = new Object();\nf5o0.value = \u0027Flexible Working Request Accepted\u0027;\nf5o0.label = \u0027Flexible Working Request Accepted\u0027;\nf5o.push(f5o0);\nvar f5o1 = new Object();\nf5o1.value = \u0027Flexible Working Request Declined\u0027;\nf5o1.label = \u0027Flexible Working Request Declined\u0027;\nf5o.push(f5o1);\nf5.options = f5o;\nfields.push(f5);\nvar f6 = new Object();\nf6.id = \u0027effectiveDate\u0027;\nf6.type = \u0027date\u0027;\nf6.label = \u0027Effective Date\u0027;\nf6.value = today;\nfields.push(f6);\nvar fc = new Object();\nfc.id = \u0027formContext\u0027;\nfc.type = \u0027system\u0027;\nfc.label = \u0027Context\u0027;\nfc.value = \u0027submitHoursChange\u0027;\nfields.push(fc);\nvar props = new Object();\nprops.id = \u0027submitHoursChange\u0027;\nprops.readOnly = false;\nprops.fields = fields;\nvar widget = new Object();\nwidget.title = \u0027Working Hours Change\u0027;\nwidget.patternId = \u0027recordWidget\u0027;\nwidget.properties = props;\nwidget.config = props;\nreturn widget;"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "961000004"
+                                                                                      },
+                                                                         "code":  "BUILD_STARTHOURSCHANGE_FORM",
+                                                                         "id":  "961000003",
+                                                                         "inputs":  [
+
+                                                                                    ],
+                                                                         "outputSpecification":  "{\"type\":\"object\",\"properties\":{\"result\":{\"type\":\"object\"},\"timeout\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"}},\"required\":[\"result\",\"timeout\",\"error\"]}",
+                                                                         "type":  "CODE"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_RECORD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Working Hours Change Form"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_FORM_961",
+                                                                         "id":  "961000004",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000004_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Form widget JSON: {{$context.$nodes.BUILD_STARTHOURSCHANGE_FORM.$output.result}}\n\nReturn the form widget JSON above wrapped in your standard oraInfoDisplay tag envelope with a unique key attribute, exactly the same envelope you normally use when emitting widget JSON output. Inside the envelope, reproduce the JSON exactly as provided: the same keys, the same values, and the same value types. The formContext field value must remain a plain string. Keep both the properties key and the config key. Do not add a description key or any other key. Do not add preamble, commentary, markdown, or code fences. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  true,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Working Hours Confirm"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_CONFIRM_961",
+                                                                         "id":  "961000005",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000005_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Confirm card JSON: {{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONFIRMATION.$output.result.confirmCard}}\nConfirm command: {{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONFIRMATION.$output.result.confirmCommand}}\n\nYou are the Working Hours advisor. Output three things in order. First, the confirm card JSON above wrapped in your standard oraInfoDisplay tag envelope with a unique key attribute, reproduced exactly as provided with the same keys, values, and value types. Second, one sentence telling the user to review the proposed change and that they may reply confirm to proceed or cancel to stop. Third, one actionable insight in your standard oraInsight format with title Confirm Working Hours Change, a one-line shortDescription summarizing the change, actionText Confirm Change, priority true, and followUpCommand set EXACTLY to the Confirm command string above, copied character for character. Never display person ids or assignment ids. Output nothing else."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Working Hours Receipt"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_RECEIPT_961",
+                                                                         "id":  "961000006",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000006_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Update result (JSON): {{$context.$nodes.FINAL_WORKING_HOURS_CHANGE_RESPONSE.$output.result}}\n\nYou are the Working Hours advisor. Output a short confirmation card titled Working Hours Updated stating that the working hours change for the worker was submitted, summarizing the result message faithfully. If the result indicates an error or failure, instead title the card Update Did Not Complete with badgeText ERROR and summarize the failure plainly. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget. Never display person ids, assignment ids, or numeric internal identifiers. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Working Hours Clarify"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_UNCLEAR_961",
+                                                                         "id":  "961000007",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000007_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Message: {{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.crossQuestion}}\n\nYou are the Working Hours advisor. Render ONE short card titled Need More Information whose summary is the message above reproduced faithfully in plain language, with no action button. If the message above is empty or missing, write instead one short sentence asking the user for the details needed to process a working hours request: worker name or number, working hours, frequency, full or part time, working at home, accepted or declined, and effective date. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget, badgeText Question. Never display person ids, assignment ids, numeric internal identifiers, or any instruction text. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Working Hours Ask Details"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_ASK_961",
+                                                                         "id":  "961000008",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000008_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Message: Please provide the missing working hours details. Required: worker name or number, working hours, frequency, full or part time, working at home, accepted or declined, and effective date.\n\nYou are the Working Hours advisor. Render ONE short card titled Details Needed whose summary is the message above reproduced faithfully in plain language, with no action button. If the message above is empty or missing, write instead one short sentence asking the user for the details needed to process a working hours request: worker name or number, working hours, frequency, full or part time, working at home, accepted or declined, and effective date. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget, badgeText Action required. Never display person ids, assignment ids, numeric internal identifiers, or any instruction text. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     },
+                                                                     {
+                                                                         "aiAppOutputSpecification":  {
+                                                                                                          "dataDisplay":  {
+                                                                                                                              "layouts":  [
+                                                                                                                                              "ORA_LAYOUT_CARD"
+                                                                                                                                          ],
+                                                                                                                              "enableActions":  false,
+                                                                                                                              "enableCommunications":  false
+                                                                                                                          }
+                                                                                                      },
+                                                                         "metadata":  {
+                                                                                          "modelConfiguration":  {
+                                                                                                                     "modelProperties":  {
+                                                                                                                                             "k":  0,
+                                                                                                                                             "max_tokens":  32000,
+                                                                                                                                             "p":  0.75
+                                                                                                                                         },
+                                                                                                                     "code":  "ORA_LLM_PREMIUM",
+                                                                                                                     "model":  "OPEN_AI_GPT_4_1_MINI",
+                                                                                                                     "modelName":  "GPT-4.1 mini",
+                                                                                                                     "provider":  "CERT_PREMIUM"
+                                                                                                                 },
+                                                                                          "name":  "Render Working Hours Error"
+                                                                                      },
+                                                                         "outcomes":  {
+                                                                                          "success":  "end"
+                                                                                      },
+                                                                         "code":  "RENDER_CTXERR_961",
+                                                                         "id":  "961000009",
+                                                                         "inputs":  [
+                                                                                        {
+                                                                                            "id":  "961000009_1",
+                                                                                            "name":  "prompt",
+                                                                                            "type":  "string",
+                                                                                            "value":  "Message: {{$context.$nodes.FORMAT_WORKING_HOURS_CONTEXT_ERROR.$output.result.message}}\n\nYou are the Working Hours advisor. Render ONE short card titled Request Could Not Proceed whose summary is the message above reproduced faithfully in plain language, with no action button. If the message above is empty or missing, write instead one short sentence asking the user for the details needed to process a working hours request: worker name or number, working hours, frequency, full or part time, working at home, accepted or declined, and effective date. Wrap the card JSON in your standard oraInfoDisplay tag envelope with a unique key, patternId cardWidget, badgeText ERROR. Never display person ids, assignment ids, numeric internal identifiers, or any instruction text. Output only the wrapped widget."
+                                                                                        }
+                                                                                    ],
+                                                                         "type":  "LLM"
+                                                                     }
+                                                                 ],
+                                               "rootNode":  "start",
+                                               "variables":  [
+                                                                 {
+                                                                     "id":  "9100000001001",
+                                                                     "name":  "vWorkingHoursChangeRequest",
+                                                                     "scope":  "JOB",
+                                                                     "type":  "object"
+                                                                 }
+                                                             ],
+                                               "errorHandlers":  [
+
+                                                                 ]
+                                           },
+                          "jsonSchemaName":  "Workflow.spec",
+                          "jsonSchemaVersion":  "1",
+                          "inputs":  [
+
+                                     ],
+                          "outputSpecification":  " ",
+                          "agentsValueMappings":  [
+
+                                                  ],
+                          "modelConfiguration":  null,
+                          "humanApprovalFlag":  true,
+                          "waitFlag":  false,
+                          "triggers":  [
+                                           {
+                                               "type":  "REST",
+                                               "inputs":  [
+
+                                                          ]
+                                           }
+                                       ],
+                          "costSavings":  0,
+                          "timeSavings":  10,
+                          "chatExpTPFileUploadEnabledFlag":  false,
+                          "chatExpThirdPartyDetails":  [
+
+                                                       ],
+                          "policyIds":  [
+
+                                        ],
+                          "deletedTriggerTypes":  [
+
+                                                  ]
+                      },
+    "dependencies":  {
+                         "boFunctionNodes":  [
+                                                 {
+                                                     "ObjectProperties":  {
+                                                                              "jsonSchemaName":  "SupportedBusinessObject.objectProperties",
+                                                                              "jsonSchemaVersion":  1,
+                                                                              "tools":  [
+                                                                                            {
+                                                                                                "bodyTemplate":  "",
+                                                                                                "description":  "Gets worker details by person number or exact display name with names, work relationships, and assignments for HRSS working hours change processing.",
+                                                                                                "id":  1,
+                                                                                                "isNew":  true,
+                                                                                                "name":  "get_worker_working_hours_change_details",
+                                                                                                "operationType":  "GET",
+                                                                                                "parameterDefinitions":  [
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                                                                                                                                 "id":  1,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "workerQuery"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                                                                                                                                 "id":  2,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "effectiveDate"
+                                                                                                                             }
+                                                                                                                         ],
+                                                                                                "resourcePath":  "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}\u0026q={workerQuery}\u0026expand=names,workRelationships.assignments\u0026onlyData=false",
+                                                                                                "resourceType":  "ADF_BC_FIXED_QUERY",
+                                                                                                "sampleQueries":  [
+                                                                                                                      {
+                                                                                                                          "query":  {
+
+                                                                                                                                    },
+                                                                                                                          "description":  "Fetch worker assignment details for working hours change processing."
+                                                                                                                      }
+                                                                                                                  ],
+                                                                                                "type":  "BUS_OBJECT",
+                                                                                                "useNativeAuthentication":  true
+                                                                                            }
+                                                                                        ]
+                                                                          },
+                                                     "ObjectCode":  "HS2_HCM_WORKING_HOURS_CHANGE_WORKERS",
+                                                     "Family":  "HCM",
+                                                     "Product":  "GLOBAL_HUMAN_RESOURCES",
+                                                     "ObjectSource":  "ADF_BC",
+                                                     "Category":  null,
+                                                     "RestResourcePath":  "/hcmRestApi/resources/latest/workers",
+                                                     "RestResourceIdentifier":  "-1",
+                                                     "RestSupportedOperations":  "{}",
+                                                     "ParentSupptObjectId":  null,
+                                                     "MandatoryFlag":  false,
+                                                     "SeededFlag":  false,
+                                                     "ObjectDisplayName":  "HS2 Working Hours Change Worker Details",
+                                                     "Name":  "HS2 Working Hours Change Worker Details",
+                                                     "Description":  "Worker lookup for HS2 HRSS working hours changes, including names, work relationships, and active primary assignment.",
+                                                     "CreatedBy":  "HCM_IMPL1",
+                                                     "CreationDate":  "2026-06-09T03:55:56.151+00:00"
+                                                 },
+                                                 {
+                                                     "ObjectProperties":  {
+                                                                              "jsonSchemaName":  "SupportedBusinessObject.objectProperties",
+                                                                              "jsonSchemaVersion":  1,
+                                                                              "tools":  [
+                                                                                            {
+                                                                                                "headers":  {
+                                                                                                                "Content-Type":  "application/vnd.oracle.adf.resourceitem+json",
+                                                                                                                "REST-Framework-Version":  "9",
+                                                                                                                "Effective-Of":  "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+                                                                                                            },
+                                                                                                "bodyTemplate":  "{workingHoursPayload}",
+                                                                                                "description":  "Updates working hours, frequency, reason, full time or part time, and work at home values on the active primary assignment.",
+                                                                                                "id":  1,
+                                                                                                "isNew":  true,
+                                                                                                "name":  "update_assignment_working_hours",
+                                                                                                "operationType":  "PATCH",
+                                                                                                "parameterDefinitions":  [
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Workers resource hash key resolved from the workers collection link.",
+                                                                                                                                 "id":  1,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "workersUniqID"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Period of service ID.",
+                                                                                                                                 "id":  2,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "PeriodOfServiceId"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Assignments resource hash key resolved from the assignments collection link.",
+                                                                                                                                 "id":  3,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "assignmentsUniqID"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "Effective start date in YYYY-MM-DD format.",
+                                                                                                                                 "id":  4,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "effectiveDate"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "dataType":  "string",
+                                                                                                                                 "description":  "JSON payload for working hours change.",
+                                                                                                                                 "id":  5,
+                                                                                                                                 "isToken":  true,
+                                                                                                                                 "name":  "workingHoursPayload"
+                                                                                                                             }
+                                                                                                                         ],
+                                                                                                "resourcePath":  "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}",
+                                                                                                "resourceType":  "ADF_BC_FIXED_QUERY",
+                                                                                                "sampleQueries":  [
+
+                                                                                                                  ],
+                                                                                                "type":  "BUS_OBJECT",
+                                                                                                "useNativeAuthentication":  true
+                                                                                            }
+                                                                                        ]
+                                                                          },
+                                                     "ObjectCode":  "HS2_HCM_WORKING_HOURS_CHANGE_ASSIGNMENTS",
+                                                     "Family":  "HCM",
+                                                     "Product":  "GLOBAL_HUMAN_RESOURCES",
+                                                     "ObjectSource":  "ADF_BC",
+                                                     "Category":  null,
+                                                     "RestResourcePath":  "/hcmRestApi/resources/11.13.18.05/workers",
+                                                     "RestResourceIdentifier":  "-1",
+                                                     "RestSupportedOperations":  "{}",
+                                                     "ParentSupptObjectId":  null,
+                                                     "MandatoryFlag":  false,
+                                                     "SeededFlag":  false,
+                                                     "ObjectDisplayName":  "HS2 HCM Working Hours Change Assignments",
+                                                     "Name":  "HS2 HCM Working Hours Change Assignments",
+                                                     "Description":  "Patch active primary assignment working hours using href-derived or generated opaque REST keys.",
+                                                     "CreatedBy":  "HCM_IMPL1",
+                                                     "CreationDate":  "2026-06-09T03:55:56.611+00:00"
+                                                 }
+                                             ],
+                         "agentNodes":  [
+
+                                        ],
+                         "workflowNodes":  [
+
+                                           ],
+                         "documentProcessorNodes":  [
+
+                                                    ],
+                         "ragDocumentToolNodes":  [
+
+                                                  ],
+                         "toolNodes":  [
+
+                                       ],
+                         "externalRestNodes":  [
+
+                                               ]
+                     },
+    "WorkflowCode":  "HS2_WORKING_HOURS_CHANGE_AGENT_HRSS",
+    "Name":  "HS2 - Working Hours",
+    "Description":  "HRSS workflow agent for Oracle HCM working hours changes. Uses existing worker lookup and assignment PATCH artifacts. Payload sends only action, reason, hours, frequency, work-at-home flag, and full/part-time. [V5: form+confirm+write pattern cloned from Reporting Line V20] [V9: init card via CODE data, apostrophes escaped]",
+    "Family":  "HCM",
+    "Product":  "GLOBAL_HUMAN_RESOURCES",
+    "HiddenFlag":  false,
+    "AiAppsCompatibleFlag":  true,
+    "UseCaseId":  "NA",
+    "SourceWorkflowId":  null,
+    "AccessModifier":  "public",
+    "StartQuestionOne":  "Working hours change: provide worker name or number, new weekly hours, frequency, and effective date",
+    "StartQuestionTwo":  "Switch a worker between Full Time and Part Time: provide worker, target status, new hours, and effective date",
+    "StartQuestionThree":  "Update work-at-home flag or frequency for a worker: provide worker name or number and effective date",
+    "FollowUpPromptEnabledFlag":  true,
+    "FollowUpPrompt":  "After a change is submitted, you might also ask: review the worker\u0027s current assignment, start another working hours change for a different worker, or confirm the effective date applied. Always restate the worker, new hours, frequency, full/part-time, and effective date before submitting, and only proceed after explicit approval.",
+    "Architecture":  "data_pipeline",
+    "MaximumInteractions":  null,
+    "StartAgentId":  null,
+    "agents":  [
+
+               ],
+    "agentMappings":  [
+
+                      ],
+    "partnerMetadata":  {
+                            "Description":  "",
+                            "Name":  "HS2"
+                        }
+}
