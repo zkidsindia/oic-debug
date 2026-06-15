@@ -1,0 +1,649 @@
+{
+  "Specification": {
+    "dataPipeline": {
+      "pipelineNodes": [
+        {
+          "metadata": {
+            "description": "Start of data pipeline",
+            "name": "Start"
+          },
+          "outcomes": {
+            "success": "9100000000001"
+          },
+          "code": "START",
+          "id": "start",
+          "inputs": [],
+          "type": "START"
+        },
+        {
+          "metadata": {
+            "description": "End of data pipeline",
+            "name": "End"
+          },
+          "outcomes": {},
+          "code": "END",
+          "id": "end",
+          "inputs": [],
+          "type": "END"
+        },
+        {
+          "metadata": {
+            "name": "Parse Working Hours Change Request"
+          },
+          "outcomes": {
+            "success": "9100000000002"
+          },
+          "code": "PARSE_WORKING_HOURS_CHANGE_REQUEST",
+          "id": "9100000000001",
+          "inputs": [
+            {
+              "id": "9100000000001_1",
+              "name": "prompt",
+              "type": "string",
+              "value": "You are an HRSS Working Hours Change workflow intake agent.\n\nReference date: {{$context.$system.$currentDate}}\nOriginal user message: {{$context.$system.$inputMessage}}\nAdditional user feedback, if any: {{$context.$nodes.ASK_FOR_WORKING_HOURS_CHANGE_DETAILS.$feedbackRecieved}}\n\nSupported workflow goal only:\n- Change working hours for a worker.\n\nThis workflow updates the worker active primary assignment using an effective-dated PATCH operation.\n\nRequired inputs:\n- workerPersonNumber: the employee/worker identifier. Accept a worker person number or exact worker display name.\n- effectiveDate: YYYY-MM-DD. Do not default this unless the user explicitly says today/tomorrow or provides a date.\n- reasonCode: Flexible Working Request Accepted or Flexible Working Request Declined. Normalize to one of these codes only:\n  - HS2_HOURS_FLEX_WORK_ACCEPT for Flexible Working Request Accepted, accepted, approve, approved, approval, flex work accepted.\n  - HS2_HOURS_FLEX_WORK_DECLINE for Flexible Working Request Declined, declined, rejected, reject, not accepted, flex work declined.\n- normalHours: numeric working hours value for NormalHours.\n- frequency: working hours frequency. Accept Daily, Weekly, Biweekly, Semimonthly, Monthly, or Yearly. Normalize to frequencyCode using this map: Daily=D, Weekly=W, Biweekly=BW, Semimonthly=SM, Monthly=M, Yearly=Y.\n- fullPartTime: Full Time or Part Time. Normalize to FULL_TIME or PART_TIME.\n- workAtHomeFlag: Yes or No. Normalize to true for Yes and false for No.\n\nAllowed required input fields are limited to these seven fields only: workerPersonNumber, effectiveDate, reasonCode, normalHours, frequency, fullPartTime, and workAtHomeFlag. Do not request any other fields in missingFields or crossQuestion. Do not reuse any stored missingFields or crossQuestion from an earlier revision.\n\nPayload rules:\n- ActionCode is WORK_HOURS_CHANGE.\n- The update payload must contain only ActionCode, Frequency, NormalHours, ReasonCode, WorkAtHomeFlag, and FullPartTime.\n\nExtraction rules:\n- Use the original user message and any additional user feedback together to build the latest request.\n- Interpret working hours, work hours, hours change, flex working hours, flexible working request hours, and contracted hours as the supported working hours change intent.\n- Never invent person numbers or names. If the user gives a name, keep the exact name as provided in workerPersonNumber. If the user gives a person number, keep the person number as provided.\n- Effective date must be normalized to YYYY-MM-DD using the reference date.\n- If the request is not about changing working hours, set intent to \"unclear\".\n- Validate numeric fields. normalHours must be a positive number.\n- Validate frequency values strictly against Daily, Weekly, Biweekly, Semimonthly, Monthly, and Yearly. If the user gives the REST code D, W, BW, SM, M, or Y, accept it and populate both the label and code.\n- Validate fullPartTime strictly as FULL_TIME or PART_TIME after normalization.\n- Validate workAtHomeFlag strictly as true or false after normalization.\n\nMissing-details wording rule:\n- When readyToProceed is false because any required input is missing, crossQuestion must be exactly: Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No.\n- Do not add any other requested fields to crossQuestion.\n\nOutput JSON only:\n{\n  \"intent\": \"working_hours_change|unclear\",\n  \"workerPersonNumber\": \"string|null\",\n  \"effectiveDate\": \"YYYY-MM-DD|null\",\n  \"reasonCode\": \"HS2_HOURS_FLEX_WORK_ACCEPT|HS2_HOURS_FLEX_WORK_DECLINE|null\",\n  \"reasonLabel\": \"Flexible Working Request Accepted|Flexible Working Request Declined|null\",\n  \"normalHours\": number|null,\n  \"frequency\": \"Daily|Weekly|Biweekly|Semimonthly|Monthly|Yearly|null\",\n  \"frequencyCode\": \"D|W|BW|SM|M|Y|null\",\n  \"fullPartTime\": \"FULL_TIME|PART_TIME|null\",\n  \"workAtHomeFlag\": true|false|null,\n  \"readyToProceed\": true|false,\n  \"missingFields\": [\"field names\"],\n  \"crossQuestion\": \"string|null\",\n  \"summary\": \"short plain-English summary|null\"\n}\n\ncrossQuestion rules:\n- If intent is unclear, ask one concise question asking whether they want to change working hours.\n- If required information is missing, crossQuestion must use this exact text: Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No.\n- missingFields must contain only field names from this list: workerPersonNumber, effectiveDate, reasonCode, normalHours, frequency, fullPartTime, workAtHomeFlag.\n- Never ask for any fields outside that list. Include already captured fields only in summary, not in crossQuestion.\n- If validation fails, ask for the invalid field again and state the allowed values.\n- If readyToProceed is true, crossQuestion must be null."
+            }
+          ],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"intent\": {\n      \"type\": \"string\"\n    },\n    \"workerPersonNumber\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"effectiveDate\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"reasonCode\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"reasonLabel\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"normalHours\": {\n      \"type\": [\n        \"number\",\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"frequency\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"frequencyCode\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"fullPartTime\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"workAtHomeFlag\": {\n      \"type\": [\n        \"boolean\",\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"readyToProceed\": {\n      \"type\": \"boolean\"\n    },\n    \"missingFields\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"crossQuestion\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    },\n    \"summary\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    }\n  },\n  \"required\": [\n    \"intent\",\n    \"workerPersonNumber\",\n    \"effectiveDate\",\n    \"reasonCode\",\n    \"reasonLabel\",\n    \"normalHours\",\n    \"frequency\",\n    \"frequencyCode\",\n    \"fullPartTime\",\n    \"workAtHomeFlag\",\n    \"readyToProceed\",\n    \"missingFields\",\n    \"crossQuestion\",\n    \"summary\"\n  ]\n}",
+          "type": "LLM"
+        },
+        {
+          "metadata": {
+            "name": "Set Working Hours Change Request"
+          },
+          "outcomes": {
+            "success": "9100000000003"
+          },
+          "code": "SET_WORKING_HOURS_CHANGE_REQUEST",
+          "id": "9100000000002",
+          "inputs": [
+            {
+              "id": "9100000000002_1",
+              "name": "vWorkingHoursChangeRequest",
+              "scope": "JOB",
+              "type": "object",
+              "value": "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output}}"
+            }
+          ],
+          "type": "SET_FIELDS"
+        },
+        {
+          "metadata": {
+            "name": "If Working Hours Request Unclear"
+          },
+          "outcomes": {
+            "true": "9100000000004",
+            "false": "9100000000005"
+          },
+          "code": "IF_WORKING_HOURS_REQUEST_UNCLEAR",
+          "convergenceTargetId": "end",
+          "id": "9100000000003",
+          "inputs": [
+            {
+              "id": "9100000000003_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.intent !== 'working_hours_change'}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Return Working Hours Request Unclear"
+          },
+          "outcomes": {},
+          "code": "RETURN_WORKING_HOURS_REQUEST_UNCLEAR",
+          "convergenceTargetId": "end",
+          "id": "9100000000004",
+          "inputs": [
+            {
+              "id": "9100000000004_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.crossQuestion}}"
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "If Working Hours Required Info Missing"
+          },
+          "outcomes": {
+            "true": "9100000000006",
+            "false": "9100000000010"
+          },
+          "code": "IF_WORKING_HOURS_REQUIRED_INFO_MISSING",
+          "convergenceTargetId": "end",
+          "id": "9100000000005",
+          "inputs": [
+            {
+              "id": "9100000000005_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.intent === 'working_hours_change' && ((!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.workerPersonNumber) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.effectiveDate) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.reasonCode) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.normalHours === null) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.normalHours === undefined) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.frequencyCode) || (!$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.fullPartTime) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.workAtHomeFlag === null) || ($context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.workAtHomeFlag === undefined))}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "channelType": "CHAT",
+            "feedbackEnabledFlag": true,
+            "approvalEnabledFlag": true,
+            "loopBackNodeId": "9100000000001",
+            "maxIterations": 5,
+            "name": "Ask For Working Hours Change Details"
+          },
+          "outcomes": {
+            "success": "9100000000007"
+          },
+          "code": "ASK_FOR_WORKING_HOURS_CHANGE_DETAILS",
+          "id": "9100000000006",
+          "inputs": [
+            {
+              "value": {
+                "messageTemplate": {
+                  "message": "Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No.\n\nClick Request Changes to provide the missing details, or click Approve to cancel this working hours change request."
+                },
+                "requestChangeMessage": "Please provide the missing working hours change details. Required: worker name or number, effective date, reason accepted or declined, working hours, working hours frequency, Full Time or Part Time, and Working at Home Yes or No."
+              },
+              "name": "chatChannelInput",
+              "type": "object"
+            }
+          ],
+          "type": "HUMAN"
+        },
+        {
+          "metadata": {
+            "name": "Return Working Hours Request Cancelled"
+          },
+          "outcomes": {},
+          "code": "RETURN_WORKING_HOURS_REQUEST_CANCELLED",
+          "convergenceTargetId": "end",
+          "id": "9100000000007",
+          "inputs": [
+            {
+              "id": "9100000000007_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "Working hours change request cancelled. No changes were made."
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "Build Working Hours Worker Lookup Query",
+            "returnType": "object",
+            "sourceCode": "var reqNode = $context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST;\nvar req = new Object();\nif (reqNode && reqNode.$output) {\n  req = reqNode.$output;\n}\n\nvar asString = function(v) {\n  if (v === null || v === undefined) return '';\n  return String(v).trim();\n};\n\nvar escapeQueryLiteral = function(v) {\n  return asString(v).split(\"'\").join(\"''\");\n};\n\nvar hasAnyWhitespace = function(s) {\n  var text = asString(s);\n  for (var i = 0; i < text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c === 9 || c === 10 || c === 11 || c === 12 || c === 13 || c === 32) return true;\n  }\n  return false;\n};\n\nvar hasAnyDigit = function(s) {\n  var text = asString(s);\n  for (var i = 0; i < text.length; i++) {\n    var c = text.charCodeAt(i);\n    if (c >= 48 && c <= 57) return true;\n  }\n  return false;\n};\n\nvar makeLookupResult = function(query, mode, input) {\n  var result = new Object();\n  result.query = query;\n  result.mode = mode;\n  result.input = input;\n  return result;\n};\n\nvar buildWorkerQuery = function(inputValue) {\n  var raw = asString(inputValue);\n  if (!raw) {\n    return makeLookupResult(null, 'MISSING', raw);\n  }\n  var escaped = escapeQueryLiteral(raw);\n  var personNumberLike = (!hasAnyWhitespace(raw) && hasAnyDigit(raw));\n  if (personNumberLike) {\n    return makeLookupResult(\"PersonNumber='\" + escaped + \"'\", 'PERSON_NUMBER', raw);\n  }\n  return makeLookupResult(\"UPPER(DisplayName)=UPPER('\" + escaped + \"')\", 'DISPLAY_NAME', raw);\n};\n\nvar target = buildWorkerQuery(req.workerPersonNumber);\nvar errors = [];\nif (!target.query) errors.push('Worker name or number is required.');\n\nvar output = new Object();\noutput.hasError = errors.length > 0;\noutput.errors = errors;\noutput.targetWorkerQuery = target.query;\noutput.targetLookupMode = target.mode;\noutput.targetLookupText = target.input;\nreturn output;"
+          },
+          "outcomes": {
+            "success": "9100000000011"
+          },
+          "code": "BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1",
+          "id": "9100000000010",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "HS2_HCM_WORKING_HOURS_CHANGE_WORKERS",
+            "functionName": "get_worker_working_hours_change_details",
+            "name": "Get Working Hours Target Worker"
+          },
+          "outcomes": {
+            "success": "9100000000012"
+          },
+          "code": "GET_WORKING_HOURS_TARGET_WORKER",
+          "id": "9100000000011",
+          "inputs": [
+            {
+              "id": "9100000000011_1",
+              "name": "workerQuery",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result.targetWorkerQuery}}"
+            },
+            {
+              "id": "9100000000011_2",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$system.$currentDate}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Build Working Hours Change Context",
+            "returnType": "object",
+            "sourceCode": "const req = $context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output || {};\nconst targetResponse = $context.$nodes.GET_WORKING_HOURS_TARGET_WORKER.$output || {};\nconst lookupDate = $context.$system.$currentDate;\nconst updateDate = req.effectiveDate;\nconst lookupCtx = ($context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1 && $context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output && $context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result) ? $context.$nodes.BUILD_WORKING_HOURS_WORKER_LOOKUP_QUERY_SAFE_V1.$output.result : {};\n\nconst itemsOf = (response) => {\n  if (!response) return [];\n  if (Array.isArray(response.items)) return response.items;\n  if (Array.isArray(response.Items)) return response.Items;\n  return [];\n};\n\nconst childItems = (obj, prop) => {\n  if (!obj) return [];\n  const v = obj[prop];\n  if (Array.isArray(v)) return v;\n  if (v && Array.isArray(v.items)) return v.items;\n  if (v && Array.isArray(v.Items)) return v.Items;\n  return [];\n};\n\nconst firstNonBlank = (vals) => {\n  for (let i = 0; i < vals.length; i++) {\n    const v = vals[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '') return v;\n  }\n  return null;\n};\n\nconst upper = (v) => String(v === null || v === undefined ? '' : v).trim().toUpperCase();\nconst asString = (v) => (v === null || v === undefined) ? '' : String(v).trim();\n\nconst numberOrNull = (v) => {\n  if (v === null || v === undefined || String(v).trim() === '') return null;\n  const n = Number(v);\n  return isFinite(n) ? n : null;\n};\n\nconst displayNameFromNameItem = (n) => {\n  if (!n) return null;\n  return firstNonBlank([\n    n.FullName,\n    n.DisplayName,\n    n.ListName,\n    n.Name,\n    (firstNonBlank([n.FirstName, n.GivenName]) && firstNonBlank([n.LastName, n.FamilyName])) ? (firstNonBlank([n.FirstName, n.GivenName]) + ' ' + firstNonBlank([n.LastName, n.FamilyName])) : null\n  ]);\n};\n\nconst displayName = (person) => {\n  if (!person) return null;\n  const names = childItems(person, 'names');\n  let primaryName = null;\n  let globalName = null;\n  let anyName = null;\n  for (let i = 0; i < names.length; i++) {\n    const n = names[i] || {};\n    const dn = displayNameFromNameItem(n);\n    if (!dn) continue;\n    if (!anyName) anyName = dn;\n    if (!primaryName && (n.PrimaryFlag === true || upper(n.PrimaryFlag) === 'TRUE' || upper(n.PrimaryFlag) === 'Y')) primaryName = dn;\n    if (!globalName && (upper(n.NameType) === 'GLOBAL' || upper(n.NameType) === 'GLOBAL_NAME')) globalName = dn;\n  }\n  return firstNonBlank([\n    person.DisplayName,\n    person.displayName,\n    person.PersonDisplayName,\n    person.FullName,\n    person.Name,\n    person.PersonName,\n    primaryName,\n    globalName,\n    anyName,\n    person.PersonNumber\n  ]);\n};\n\nconst directLinksOf = (item) => {\n  if (!item) return [];\n  let links = [];\n  if (Array.isArray(item.links)) links = links.concat(item.links);\n  if (Array.isArray(item.Links)) links = links.concat(item.Links);\n  return links;\n};\n\nconst contextLinksOf = (item) => {\n  if (!item) return [];\n  let links = [];\n  const c = item['@context'] || item.context || item.Context || null;\n  if (c && Array.isArray(c.links)) links = links.concat(c.links);\n  if (c && Array.isArray(c.Links)) links = links.concat(c.Links);\n  return links;\n};\n\nconst keyLooksLikeOpaqueHrefKey = (key) => {\n  const k = asString(key);\n  if (!k) return false;\n  if (k.indexOf(',') >= 0 || k.indexOf('%2C') >= 0 || k.indexOf('%2c') >= 0) return false;\n  if (/^\\d+$/.test(k)) return false;\n  return /^[0-9A-Fa-f]{40,}$/.test(k);\n};\n\nconst leftPad = (text, length, padChar) => {\n  let s = asString(text);\n  const p = asString(padChar) || '0';\n  while (s.length < length) s = p + s;\n  return s;\n};\n\nconst numericIdFromEffectiveDatedKey = (key) => {\n  const k = asString(key);\n  if (!k) return null;\n  const decoded = k.replace(/%2C/gi, ',');\n  const first = decoded.split(',')[0];\n  if (/^\\d+$/.test(first)) return first;\n  return null;\n};\n\nconst dateToUtcMidnightMillisHex = (dateText) => {\n  const d = asString(dateText);\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(d);\n  if (!m) return null;\n  const y = Number(m[1]);\n  const mo = Number(m[2]);\n  const day = Number(m[3]);\n  const millis = Date.UTC(y, mo - 1, day);\n  if (!isFinite(millis)) return null;\n  return leftPad(millis.toString(16).toUpperCase(), 16, '0');\n};\n\nconst oracleOpaqueKeyFromIdAndDate = (numericId, dateText) => {\n  const idText = asString(numericId);\n  if (!/^\\d+$/.test(idText)) return null;\n  const idNumber = Number(idText);\n  if (!isFinite(idNumber)) return null;\n  const idHex = leftPad(idNumber.toString(16).toUpperCase(), 13, '0');\n  const dateHex = dateToUtcMidnightMillisHex(dateText);\n  if (!dateHex) return null;\n  return '00020000000EACED00057708000' +\n    idHex +\n    '0000004AACED00057372000D6A6176612E73716C2E4461746514FA46683F3566970200007872000E6A6176612E7574696C2E44617465686A81014B59741903000078707708' +\n    dateHex +\n    '78';\n};\n\nconst resolveOpaqueKey = (rawKey, numericId, lookupDateForKey, label, warnings) => {\n  if (keyLooksLikeOpaqueHrefKey(rawKey)) {\n    return { key: rawKey, source: 'raw_href', rawKey: rawKey };\n  }\n  const idCandidate = firstNonBlank([numericId, numericIdFromEffectiveDatedKey(rawKey)]);\n  const generated = oracleOpaqueKeyFromIdAndDate(idCandidate, lookupDateForKey);\n  if (generated && keyLooksLikeOpaqueHrefKey(generated)) {\n    warnings.push(label + ' REST key was generated from numeric ID ' + idCandidate + ' and lookup effective date ' + lookupDateForKey + ' because Agent Studio returned a transformed effective-dated key instead of the raw href key.');\n    return { key: generated, source: 'generated_from_numeric_id_and_lookup_date', rawKey: rawKey };\n  }\n  return { key: rawKey, source: rawKey ? 'unusable_transformed_key' : 'not_found', rawKey: rawKey };\n};\n\nconst keyAfterSegment = (href, segment) => {\n  if (!href || !segment) return null;\n  const marker = '/' + segment + '/';\n  const text = String(href);\n  const idx = text.indexOf(marker);\n  if (idx < 0) return null;\n  const rest = text.substring(idx + marker.length);\n  const key = rest.split('/')[0].split('?')[0];\n  return key || null;\n};\n\nconst keyFromLinks = (links, segment, expectedName) => {\n  let fallback = null;\n  for (let i = 0; i < links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const name = asString(l.name);\n    if (expectedName && name && name !== expectedName) continue;\n    const rel = asString(l.rel).toLowerCase();\n    const key = keyAfterSegment(l.href, segment);\n    if (!key) continue;\n    if ((rel === 'self' || rel === 'canonical') && keyLooksLikeOpaqueHrefKey(key)) return key;\n    if (!fallback) fallback = key;\n  }\n  for (let i = 0; i < links.length; i++) {\n    const l = links[i] || {};\n    if (!l.href) continue;\n    const key = keyAfterSegment(l.href, segment);\n    if (keyLooksLikeOpaqueHrefKey(key)) return key;\n  }\n  return fallback;\n};\n\nconst keyFromItem = (item, segment, expectedName) => {\n  const directKey = keyFromLinks(directLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(directKey)) return directKey;\n  const contextKey = keyFromLinks(contextLinksOf(item), segment, expectedName);\n  if (keyLooksLikeOpaqueHrefKey(contextKey)) return contextKey;\n  return directKey || contextKey;\n};\n\nconst isDateInRange = (date, start, end) => {\n  const d = asString(date);\n  const s = asString(start);\n  const e = asString(end);\n  if (!d) return true;\n  if (s && d < s) return false;\n  if (e && d > e) return false;\n  return true;\n};\n\nconst workRelIsActive = (rel, asOfDate) => {\n  if (!rel) return false;\n  const start = firstNonBlank([rel.StartDate, rel.EffectiveStartDate]);\n  const end = firstNonBlank([rel.TerminationDate, rel.ProjectedTerminationDate, rel.EffectiveEndDate, '4712-12-31']);\n  return isDateInRange(asOfDate, start, end);\n};\n\nconst workRelIsPrimary = (rel) => {\n  return rel && (rel.PrimaryFlag === true || upper(rel.PrimaryFlag) === 'TRUE' || upper(rel.PrimaryFlag) === 'Y');\n};\n\nconst assignmentIsPrimary = (a) => {\n  return a && (\n    a.PrimaryAssignmentFlag === true ||\n    a.AssignmentPrimaryFlag === true ||\n    a.PrimaryFlag === true ||\n    upper(a.PrimaryAssignmentFlag) === 'TRUE' ||\n    upper(a.AssignmentPrimaryFlag) === 'TRUE' ||\n    upper(a.PrimaryFlag) === 'TRUE' ||\n    upper(a.PrimaryAssignmentFlag) === 'Y' ||\n    upper(a.PrimaryFlag) === 'Y'\n  );\n};\n\nconst assignmentIsActive = (a, asOfDate) => {\n  if (!a) return false;\n  const status = upper(firstNonBlank([a.AssignmentStatusType, a.AssignmentStatusTypeCode, a.AssignmentStatus, a.AssignmentStatusMeaning]));\n  const statusActive = !status || status.indexOf('ACTIVE') >= 0 || status === 'ACT';\n  const inRange = isDateInRange(asOfDate, a.EffectiveStartDate, firstNonBlank([a.EffectiveEndDate, '4712-12-31']));\n  const latest = !a.EffectiveLatestChange || upper(a.EffectiveLatestChange) === 'Y' || upper(a.EffectiveLatestChange) === 'TRUE';\n  return statusActive && inRange && latest;\n};\n\nconst chooseWorkRelationship = (worker, asOfDate, errors, label) => {\n  const rels = childItems(worker, 'workRelationships');\n  if (!rels.length) return null;\n  const active = [];\n  for (let i = 0; i < rels.length; i++) {\n    if (workRelIsActive(rels[i], asOfDate)) active.push(rels[i]);\n  }\n  const candidates = active.length ? active : rels;\n  const primaryActive = [];\n  for (let i = 0; i < candidates.length; i++) {\n    if (workRelIsPrimary(candidates[i])) primaryActive.push(candidates[i]);\n  }\n  if (primaryActive.length === 1) return primaryActive[0];\n  if (active.length === 1) return active[0];\n  if (primaryActive.length > 1) errors.push('More than one active primary work relationship was found for ' + label + '. Please resolve the duplicate work relationship before using the agent.');\n  else if (active.length > 1) errors.push('More than one active work relationship was found for ' + label + '. Please resolve the duplicate work relationship before using the agent.');\n  return candidates[0];\n};\n\nconst chooseAssignment = (rel, asOfDate, errors, label) => {\n  const assignments = childItems(rel, 'assignments');\n  if (!assignments.length) return null;\n  const activePrimary = [];\n  const primary = [];\n  const active = [];\n  for (let i = 0; i < assignments.length; i++) {\n    if (assignmentIsPrimary(assignments[i])) primary.push(assignments[i]);\n    if (assignmentIsActive(assignments[i], asOfDate)) active.push(assignments[i]);\n    if (assignmentIsPrimary(assignments[i]) && assignmentIsActive(assignments[i], asOfDate)) activePrimary.push(assignments[i]);\n  }\n  if (activePrimary.length === 1) return activePrimary[0];\n  if (activePrimary.length > 1) errors.push('More than one active primary assignment was found for ' + label + '. Please resolve the duplicate assignment before using the agent.');\n  if (primary.length === 1) return primary[0];\n  if (active.length === 1) return active[0];\n  if (active.length > 1) errors.push('More than one active assignment was found for ' + label + '. Please resolve the duplicate assignment before using the agent.');\n  return assignments[0];\n};\n\nconst frequencyCodeOf = (value) => {\n  const c = upper(value);\n  if (c === 'D' || c === 'W' || c === 'BW' || c === 'SM' || c === 'M' || c === 'Y') return c;\n  if (c === 'DAILY') return 'D';\n  if (c === 'WEEKLY') return 'W';\n  if (c === 'BIWEEKLY' || c === 'BI-WEEKLY') return 'BW';\n  if (c === 'SEMIMONTHLY' || c === 'SEMI-MONTHLY') return 'SM';\n  if (c === 'MONTHLY') return 'M';\n  if (c === 'YEARLY' || c === 'ANNUALLY' || c === 'ANNUAL') return 'Y';\n  return null;\n};\n\nconst frequencyLabel = (code) => {\n  const c = frequencyCodeOf(code);\n  if (c === 'D') return 'Daily';\n  if (c === 'W') return 'Weekly';\n  if (c === 'BW') return 'Biweekly';\n  if (c === 'SM') return 'Semimonthly';\n  if (c === 'M') return 'Monthly';\n  if (c === 'Y') return 'Yearly';\n  return code || null;\n};\n\nconst validFrequencyCode = (code) => {\n  return frequencyCodeOf(code) !== null;\n};\n\nconst validReasonCode = (code) => {\n  const c = upper(code);\n  return c === 'HS2_HOURS_FLEX_WORK_ACCEPT' || c === 'HS2_HOURS_FLEX_WORK_DECLINE';\n};\n\nconst validFullPartTime = (code) => {\n  const c = upper(code);\n  return c === 'FULL_TIME' || c === 'PART_TIME';\n};\n\nconst booleanValue = (v) => {\n  if (v === true || upper(v) === 'TRUE' || upper(v) === 'Y' || upper(v) === 'YES') return true;\n  if (v === false || upper(v) === 'FALSE' || upper(v) === 'N' || upper(v) === 'NO') return false;\n  return null;\n};\n\nconst assignmentField = (a, names) => {\n  for (let i = 0; i < names.length; i++) {\n    if (a && a[names[i]] !== null && a[names[i]] !== undefined && String(a[names[i]]).trim() !== '') return a[names[i]];\n  }\n  return null;\n};\n\nconst buildPayload = (r, normalizedFrequencyCode) => {\n  return {\n    ActionCode: 'WORK_HOURS_CHANGE',\n    Frequency: upper(normalizedFrequencyCode || r.frequencyCode),\n    NormalHours: numberOrNull(r.normalHours),\n    ReasonCode: r.reasonCode,\n    WorkAtHomeFlag: booleanValue(r.workAtHomeFlag),\n    FullPartTime: upper(r.fullPartTime)\n  };\n};\n\nconst targetItems = itemsOf(targetResponse);\nconst errors = [];\nconst warnings = [];\n\nconst lookupLabel = (person) => {\n  if (!person) return 'Name not available | Person Number: Not available';\n  const pn = firstNonBlank([person.PersonNumber, person.personNumber, 'Not available']);\n  const dn = displayName(person) || 'Name not available';\n  return dn + ' | Person Number: ' + pn;\n};\n\nconst duplicateListText = (items) => {\n  const rows = [];\n  for (let i = 0; i < items.length; i++) rows.push(lookupLabel(items[i]));\n  return rows.join('; ');\n};\n\nif (lookupCtx.hasError === true && lookupCtx.errors && lookupCtx.errors.length) {\n  for (let i = 0; i < lookupCtx.errors.length; i++) errors.push(lookupCtx.errors[i]);\n}\n\nif (lookupCtx.targetLookupMode === 'DISPLAY_NAME' && targetItems.length > 1) {\n  errors.push('Multiple workers were found for display name ' + lookupCtx.targetLookupText + '. Please rerun the request using the correct worker person number. Matches: ' + duplicateListText(targetItems));\n}\n\nconst targetWorker = targetItems.length ? targetItems[0] : null;\nif (!targetWorker) errors.push('Target worker was not found for ' + (lookupCtx.targetLookupText || req.workerPersonNumber) + '.');\n\nlet targetRel = null;\nlet targetAssign = null;\nif (targetWorker) {\n  targetRel = chooseWorkRelationship(targetWorker, lookupDate, errors, 'target worker ' + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetRel) errors.push('No work relationship was found for the target worker.');\n  targetAssign = chooseAssignment(targetRel, lookupDate, errors, 'target worker ' + (lookupCtx.targetLookupText || req.workerPersonNumber));\n  if (!targetAssign) errors.push('No active primary assignment was found for the target worker.');\n}\n\nconst rawWorkersUniqID = targetWorker ? keyFromItem(targetWorker, 'workers', 'workers') : null;\nconst targetWorkerIdForKey = targetWorker ? firstNonBlank([targetWorker.PersonId, targetWorker.personId, numericIdFromEffectiveDatedKey(rawWorkersUniqID)]) : null;\nconst workerKeyResolution = targetWorker ? resolveOpaqueKey(rawWorkersUniqID, targetWorkerIdForKey, lookupDate, 'Worker', warnings) : { key: null, source: 'not_found', rawKey: null };\nconst workersUniqID = workerKeyResolution.key;\nconst periodOfServiceId = firstNonBlank([targetRel && targetRel.PeriodOfServiceId, targetRel && targetRel.periodOfServiceId]);\nconst targetAssignmentId = firstNonBlank([targetAssign && targetAssign.AssignmentId, targetAssign && targetAssign.assignmentId]);\nconst rawAssignmentsUniqID = targetAssign ? keyFromItem(targetAssign, 'assignments', 'assignments') : null;\nconst assignmentIdForKey = firstNonBlank([targetAssignmentId, numericIdFromEffectiveDatedKey(rawAssignmentsUniqID)]);\nconst assignmentKeyResolution = targetAssign ? resolveOpaqueKey(rawAssignmentsUniqID, assignmentIdForKey, lookupDate, 'Assignment', warnings) : { key: null, source: 'not_found', rawKey: null };\nconst assignmentsUniqID = assignmentKeyResolution.key;\nconst targetAssignmentNumber = firstNonBlank([targetAssign && targetAssign.AssignmentNumber, targetAssign && targetAssign.assignmentNumber, targetAssign && targetAssign.AssignmentName]);\n\nif (!workersUniqID) errors.push('The workersUniqID could not be resolved from the worker self link named workers.');\nif (workersUniqID && !keyLooksLikeOpaqueHrefKey(workersUniqID)) errors.push('The workersUniqID resolved to ' + workersUniqID + ', which is not usable. The agent could not generate an opaque REST key from PersonId ' + targetWorkerIdForKey + ' and lookup effective date ' + lookupDate + '.');\nif (!periodOfServiceId) errors.push('The PeriodOfServiceId could not be resolved from the active work relationship.');\nif (!assignmentsUniqID) errors.push('The assignmentsUniqID could not be resolved from the active primary assignment self link named assignments.');\nif (assignmentsUniqID && !keyLooksLikeOpaqueHrefKey(assignmentsUniqID)) errors.push('The assignmentsUniqID resolved to ' + assignmentsUniqID + ', which is not usable. The agent could not generate an opaque REST key from AssignmentId ' + assignmentIdForKey + ' and lookup effective date ' + lookupDate + '.');\n\nconst currentNormalHours = assignmentField(targetAssign, ['NormalHours', 'normalHours', 'WorkingHours', 'workingHours']);\nconst currentFrequency = assignmentField(targetAssign, ['Frequency', 'frequency']);\nconst currentFullPartTime = assignmentField(targetAssign, ['FullPartTime', 'fullPartTime', 'FullPartTimeMeaning']);\nconst currentWorkAtHomeFlag = assignmentField(targetAssign, ['WorkAtHomeFlag', 'workAtHomeFlag']);\n\nconst normalHours = numberOrNull(req.normalHours);\nconst requestFrequencyCode = frequencyCodeOf(firstNonBlank([req.frequencyCode, req.frequency]));\nconst workAtHome = booleanValue(req.workAtHomeFlag);\n\nif (!validReasonCode(req.reasonCode)) errors.push('Reason must be Flexible Working Request Accepted or Flexible Working Request Declined.');\nif (normalHours === null || normalHours <= 0) errors.push('Working hours must be a positive numeric value.');\nif (!requestFrequencyCode) errors.push('Working hours frequency must be one of Daily, Weekly, Biweekly, Semimonthly, Monthly, or Yearly.');\nif (!validFullPartTime(req.fullPartTime)) errors.push('Full Time or Part Time must be provided as Full Time or Part Time.');\nif (workAtHome === null) errors.push('Working at Home must be Yes or No.');\n\nconst patchPayload = buildPayload(req, requestFrequencyCode);\n\nconst result = {\n  hasError: errors.length > 0,\n  errors: errors,\n  warnings: warnings,\n  request: req,\n  lookupEffectiveDate: lookupDate,\n  updateEffectiveDate: updateDate,\n  workersUniqID: workersUniqID,\n  rawWorkersUniqID: rawWorkersUniqID,\n  workersUniqIDSource: workerKeyResolution.source,\n  periodOfServiceId: periodOfServiceId,\n  assignmentsUniqID: assignmentsUniqID,\n  rawAssignmentsUniqID: rawAssignmentsUniqID,\n  assignmentsUniqIDSource: assignmentKeyResolution.source,\n  targetWorkerName: displayName(targetWorker),\n  targetWorkerPersonNumber: firstNonBlank([targetWorker && targetWorker.PersonNumber, targetWorker && targetWorker.personNumber, req.workerPersonNumber]),\n  targetAssignmentId: targetAssignmentId,\n  targetAssignmentNumber: targetAssignmentNumber,\n  currentAssignment: {\n    normalHours: currentNormalHours,\n    frequency: frequencyLabel(currentFrequency),\n    frequencyCode: currentFrequency,\n    fullPartTime: currentFullPartTime,\n    workAtHomeFlag: currentWorkAtHomeFlag\n  },\n  proposedAssignment: {\n    actionCode: 'WORK_HOURS_CHANGE',\n    reasonCode: req.reasonCode,\n    reasonLabel: req.reasonLabel,\n    normalHours: normalHours,\n    frequency: frequencyLabel(requestFrequencyCode),\n    frequencyCode: upper(requestFrequencyCode),\n    fullPartTime: upper(req.fullPartTime),\n    workAtHomeFlag: workAtHome\n  },\n  workingHoursPayload: patchPayload,\n  effectiveHeaderPatch: 'RangeMode=UPDATE;RangeStartDate=' + updateDate + ';RangeEndDate=4712-12-31'\n};\n\nreturn result;"
+          },
+          "outcomes": {
+            "success": "9100000000013"
+          },
+          "code": "BUILD_WORKING_HOURS_CHANGE_CONTEXT",
+          "id": "9100000000012",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "If Working Hours Context Has Error"
+          },
+          "outcomes": {
+            "true": "9100000000014",
+            "false": "9100000000016"
+          },
+          "code": "IF_WORKING_HOURS_CONTEXT_HAS_ERROR",
+          "convergenceTargetId": "end",
+          "id": "9100000000013",
+          "inputs": [
+            {
+              "id": "9100000000013_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.hasError === true}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "name": "Format Working Hours Context Error",
+            "returnType": "object",
+            "sourceCode": "const errors = $context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.errors || [];\nlet message = 'I could not prepare the working hours change because:';\nfor (let i = 0; i < errors.length; i++) {\n  message += '\\n- ' + errors[i];\n}\nreturn { message: message };"
+          },
+          "outcomes": {
+            "success": "9100000000015"
+          },
+          "code": "FORMAT_WORKING_HOURS_CONTEXT_ERROR",
+          "id": "9100000000014",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Return Working Hours Context Error"
+          },
+          "outcomes": {},
+          "code": "RETURN_WORKING_HOURS_CONTEXT_ERROR",
+          "convergenceTargetId": "end",
+          "id": "9100000000015",
+          "inputs": [
+            {
+              "id": "9100000000015_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "{{$context.$nodes.FORMAT_WORKING_HOURS_CONTEXT_ERROR.$output.result.message}}"
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "Build Working Hours Change Confirmation",
+            "returnType": "object",
+            "sourceCode": "const ctx = $context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result;\nconst req = ctx.request || {};\n\nconst asString = (v) => (v === null || v === undefined) ? '' : String(v).trim();\n\nconst displayValue = (v) => {\n  const s = asString(v);\n  return s ? s : 'Not available';\n};\n\nconst yesNo = (v) => {\n  if (v === true || asString(v).toUpperCase() === 'TRUE' || asString(v).toUpperCase() === 'Y') return 'Yes';\n  if (v === false || asString(v).toUpperCase() === 'FALSE' || asString(v).toUpperCase() === 'N') return 'No';\n  return displayValue(v);\n};\n\nconst fullPartTimeLabel = (v) => {\n  const s = asString(v).toUpperCase();\n  if (s === 'FULL_TIME') return 'Full Time';\n  if (s === 'PART_TIME') return 'Part Time';\n  return displayValue(v);\n};\n\nconst formatPerson = (name, personNumber, assignmentNumber) => {\n  const n = asString(name);\n  const pn = asString(personNumber);\n  const an = asString(assignmentNumber);\n  let label = n;\n  if (!label || label === pn || label === an) label = 'Name not available';\n  let out = label;\n  if (pn) out += ' | Person Number: ' + pn;\n  if (an) out += ' | Assignment: ' + an;\n  return out;\n};\n\nconst current = ctx.currentAssignment || {};\nconst proposed = ctx.proposedAssignment || {};\n\nlet msg = 'Confirm Working Hours Change\\n\\n';\nmsg += 'Request Summary\\n';\nmsg += '- Employee: ' + formatPerson(ctx.targetWorkerName, ctx.targetWorkerPersonNumber, ctx.targetAssignmentNumber) + '\\n';\nmsg += '- Effective Date: ' + displayValue(req.effectiveDate) + '\\n';\nmsg += '- Reason: ' + displayValue(proposed.reasonLabel || req.reasonCode) + '\\n\\n';\n\nmsg += 'Current Assignment Values\\n';\nmsg += '- Working Hours: ' + displayValue(current.normalHours) + '\\n';\nmsg += '- Working Hours Frequency: ' + displayValue(current.frequency || current.frequencyCode) + '\\n';\nmsg += '- Full Time or Part Time: ' + fullPartTimeLabel(current.fullPartTime) + '\\n';\nmsg += '- Working at Home: ' + yesNo(current.workAtHomeFlag) + '\\n\\n';\n\nmsg += 'Proposed Assignment Values\\n';\nmsg += '- Action Code: ' + displayValue(proposed.actionCode) + '\\n';\nmsg += '- Reason Code: ' + displayValue(proposed.reasonCode) + '\\n';\nmsg += '- Working Hours: ' + displayValue(proposed.normalHours) + '\\n';\nmsg += '- Working Hours Frequency: ' + displayValue(proposed.frequency) + ' (' + displayValue(proposed.frequencyCode) + ')\\n';\nmsg += '- Full Time or Part Time: ' + fullPartTimeLabel(proposed.fullPartTime) + '\\n';\nmsg += '- Working at Home: ' + yesNo(proposed.workAtHomeFlag) + '\\n\\n';\n\nmsg += 'Approval Action\\n';\nmsg += 'Click Approve to submit this working hours change to Oracle HCM. Click Reject to cancel without making any change.';\n\nreturn { message: msg };"
+          },
+          "outcomes": {
+            "success": "9100000000017"
+          },
+          "code": "BUILD_WORKING_HOURS_CHANGE_CONFIRMATION",
+          "id": "9100000000016",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "channelType": "CHAT",
+            "feedbackEnabledFlag": false,
+            "approvalEnabledFlag": true,
+            "name": "Confirm Working Hours Change"
+          },
+          "outcomes": {
+            "success": "9100000000018"
+          },
+          "code": "CONFIRM_WORKING_HOURS_CHANGE",
+          "id": "9100000000017",
+          "inputs": [
+            {
+              "value": {
+                "messageTemplate": {
+                  "message": "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONFIRMATION.$output.result.message}}"
+                }
+              },
+              "name": "chatChannelInput",
+              "type": "object"
+            }
+          ],
+          "type": "HUMAN"
+        },
+        {
+          "metadata": {
+            "name": "If Working Hours Change Approved"
+          },
+          "outcomes": {
+            "true": "9100000000019",
+            "false": "9100000000020"
+          },
+          "code": "IF_WORKING_HOURS_CHANGE_APPROVED",
+          "convergenceTargetId": "end",
+          "id": "9100000000018",
+          "inputs": [
+            {
+              "id": "9100000000018_1",
+              "name": "condition",
+              "type": "string",
+              "value": "{{$context.$nodes.CONFIRM_WORKING_HOURS_CHANGE.$actionPerformed === 'APPROVED'}}"
+            }
+          ],
+          "type": "CONDITION"
+        },
+        {
+          "metadata": {
+            "businessObjectCode": "HS2_HCM_WORKING_HOURS_CHANGE_ASSIGNMENTS",
+            "errorNodeId": "9100000000021",
+            "functionName": "update_assignment_working_hours",
+            "name": "Patch Assignment Working Hours"
+          },
+          "outcomes": {
+            "success": "9100000000021"
+          },
+          "code": "PATCH_ASSIGNMENT_WORKING_HOURS",
+          "id": "9100000000019",
+          "inputs": [
+            {
+              "id": "9100000000019_1",
+              "name": "workersUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.workersUniqID}}"
+            },
+            {
+              "id": "9100000000019_2",
+              "name": "PeriodOfServiceId",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.periodOfServiceId}}"
+            },
+            {
+              "id": "9100000000019_3",
+              "name": "assignmentsUniqID",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.assignmentsUniqID}}"
+            },
+            {
+              "id": "9100000000019_4",
+              "name": "effectiveDate",
+              "type": "string",
+              "value": "{{$context.$nodes.PARSE_WORKING_HOURS_CHANGE_REQUEST.$output.effectiveDate}}"
+            },
+            {
+              "id": "9100000000019_5",
+              "name": "workingHoursPayload",
+              "type": "string",
+              "value": "{{$context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result.workingHoursPayload}}"
+            }
+          ],
+          "outputSpecification": "{}",
+          "type": "BO_FUNCTION"
+        },
+        {
+          "metadata": {
+            "name": "Return Working Hours Change Rejected"
+          },
+          "outcomes": {},
+          "code": "RETURN_WORKING_HOURS_CHANGE_REJECTED",
+          "convergenceTargetId": "end",
+          "id": "9100000000020",
+          "inputs": [
+            {
+              "id": "9100000000020_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "Working hours change cancelled. No changes were made."
+            }
+          ],
+          "type": "RETURN"
+        },
+        {
+          "metadata": {
+            "name": "Final Working Hours Change Response",
+            "returnType": "object",
+            "sourceCode": "const ctx = $context.$nodes.BUILD_WORKING_HOURS_CHANGE_CONTEXT.$output.result;\nconst patchNode = $context.$nodes.PATCH_ASSIGNMENT_WORKING_HOURS || {};\n\nconst firstNonBlankLocal = (vals) => {\n  for (let i = 0; i < vals.length; i++) {\n    const v = vals[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '') return v;\n  }\n  return null;\n};\n\nconst httpStatus = (n) => {\n  if (!n) return null;\n  const candidates = [\n    n.$output && n.$output.responseStatus,\n    n.$output && n.$output.output && n.$output.output.responseStatus,\n    n.$output && n.$output.result && n.$output.result.responseStatus,\n    n.responseStatus,\n    n.statusCode\n  ];\n  for (let i = 0; i < candidates.length; i++) {\n    const v = candidates[i];\n    if (v !== null && v !== undefined && String(v).trim() !== '' && !isNaN(Number(v))) return Number(v);\n  }\n  return null;\n};\n\nconst responseBody = (n) => {\n  if (!n) return null;\n  return firstNonBlankLocal([\n    n.$output && n.$output.response,\n    n.$output && n.$output.output && n.$output.output.response,\n    n.$output && n.$output.result && n.$output.result.response\n  ]);\n};\n\nconst errorText = (n) => {\n  if (!n) return null;\n  const st = httpStatus(n);\n  const body = responseBody(n);\n  if (st && st >= 400) return 'HTTP ' + st + (body ? ': ' + body : '');\n  if (n.$error && n.$error.$info) return n.$error.$info;\n  if (n.$error && n.$error.info) return n.$error.info;\n  if (n.$error && n.$error.message) return n.$error.message;\n  if (n.$error && n.$error.$code) return n.$error.$code;\n  if (n.$output && n.$output.error) return n.$output.error;\n  return null;\n};\n\nconst statusText = (n) => n ? (n.$status || n.status || null) : null;\n\nconst isFailure = (n) => {\n  const stCode = httpStatus(n);\n  if (stCode && stCode >= 400) return true;\n  const err = errorText(n);\n  if (err) return true;\n  const st = statusText(n);\n  if (!st) return false;\n  const s = String(st).toUpperCase();\n  return s.indexOf('FAIL') >= 0 || s.indexOf('ERROR') >= 0 || /^4\\d\\d/.test(s) || /^5\\d\\d/.test(s);\n};\n\nconst failed = isFailure(patchNode);\nconst proposed = ctx.proposedAssignment || {};\nlet msg = '';\n\nif (!failed) {\n  msg += 'Working hours change submitted successfully.\\n\\n';\n} else {\n  msg += 'The working hours change could not be completed.\\n\\n';\n}\n\nmsg += 'Summary\\n';\nmsg += '- Worker: ' + (ctx.targetWorkerName || '') + ' (' + ctx.targetWorkerPersonNumber + ')\\n';\nmsg += '- Assignment: ' + (ctx.targetAssignmentNumber || '') + '\\n';\nmsg += '- Lookup Date: ' + ctx.lookupEffectiveDate + '\\n';\nmsg += '- Update Effective Date: ' + ctx.updateEffectiveDate + '\\n';\nmsg += '- Working Hours: ' + proposed.normalHours + ' ' + (proposed.frequency || '') + '\\n';\nmsg += '- Full Time or Part Time: ' + proposed.fullPartTime + '\\n';\nmsg += '- Working at Home: ' + (proposed.workAtHomeFlag === true ? 'Yes' : 'No') + '\\n\\n';\nmsg += 'Operation status\\n';\nmsg += '- Assignment Working Hours: ' + (failed ? 'Failed' : 'Submitted');\nconst detail = errorText(patchNode);\nif (detail) msg += '\\n  ' + String(detail).replace(/Bad Request/gi, '').replace(/[A-Z]{2,5}-\\d{3,}/g, '').trim();\n\nreturn { message: msg, failures: failed ? 1 : 0 };"
+          },
+          "outcomes": {
+            "success": "9100000000022"
+          },
+          "code": "FINAL_WORKING_HOURS_CHANGE_RESPONSE",
+          "id": "9100000000021",
+          "inputs": [],
+          "outputSpecification": "{\n  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"result\": {\n      \"type\": \"object\"\n    },\n    \"timeout\": {\n      \"type\": \"boolean\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"result\",\n    \"timeout\",\n    \"error\"\n  ]\n}",
+          "type": "CODE"
+        },
+        {
+          "metadata": {
+            "name": "Return Final Working Hours Change Status"
+          },
+          "outcomes": {},
+          "code": "RETURN_FINAL_WORKING_HOURS_CHANGE_STATUS",
+          "convergenceTargetId": "end",
+          "id": "9100000000022",
+          "inputs": [
+            {
+              "id": "9100000000022_1",
+              "name": "returnValue",
+              "type": "string",
+              "value": "{{$context.$nodes.FINAL_WORKING_HOURS_CHANGE_RESPONSE.$output.result.message}}"
+            }
+          ],
+          "type": "RETURN"
+        }
+      ],
+      "rootNode": "start",
+      "variables": [
+        {
+          "id": "9100000001001",
+          "name": "vWorkingHoursChangeRequest",
+          "scope": "JOB",
+          "type": "object"
+        }
+      ],
+      "errorHandlers": []
+    },
+    "jsonSchemaName": "Workflow.spec",
+    "jsonSchemaVersion": "1",
+    "inputs": [],
+    "outputSpecification": " ",
+    "agentsValueMappings": [],
+    "modelConfiguration": null,
+    "humanApprovalFlag": true,
+    "waitFlag": false,
+    "triggers": [
+      {
+        "type": "REST",
+        "inputs": []
+      }
+    ],
+    "costSavings": 0,
+    "timeSavings": 10,
+    "chatExpTPFileUploadEnabledFlag": false,
+    "chatExpThirdPartyDetails": [],
+    "policyIds": []
+  },
+  "dependencies": {
+    "boFunctionNodes": [
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "bodyTemplate": "",
+              "description": "Gets worker details by person number or exact display name with names, work relationships, and assignments for HRSS working hours change processing.",
+              "id": 1,
+              "isNew": true,
+              "name": "get_worker_working_hours_change_details",
+              "operationType": "GET",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Worker query expression, for example PersonNumber=12345 or UPPER(DisplayName)=UPPER(Jane Smith).",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workerQuery"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Lookup effective date in YYYY-MM-DD format. The workflow passes the system date for worker discovery.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/latest/workers?effectiveDate={effectiveDate}&q={workerQuery}&expand=names,workRelationships.assignments&onlyData=false",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [
+                {
+                  "query": {},
+                  "description": "Fetch worker assignment details for working hours change processing."
+                }
+              ],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "HS2_HCM_WORKING_HOURS_CHANGE_WORKERS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/latest/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "HS2 Working Hours Change Worker Details",
+        "Name": "HS2 Working Hours Change Worker Details",
+        "Description": "Worker lookup for HS2 HRSS working hours changes, including names, work relationships, and active primary assignment.",
+        "CreatedBy": "Ragul.Halan@hs2.org.uk",
+        "CreationDate": "2026-06-05T05:31:08.315+00:00"
+      },
+      {
+        "ObjectProperties": {
+          "jsonSchemaName": "SupportedBusinessObject.objectProperties",
+          "jsonSchemaVersion": 1,
+          "tools": [
+            {
+              "headers": {
+                "Content-Type": "application/vnd.oracle.adf.resourceitem+json",
+                "REST-Framework-Version": "4",
+                "Effective-Of": "RangeMode=UPDATE;RangeStartDate={effectiveDate};RangeEndDate=4712-12-31"
+              },
+              "bodyTemplate": "{workingHoursPayload}",
+              "description": "Updates working hours, frequency, reason, full time or part time, and work at home values on the active primary assignment.",
+              "id": 1,
+              "isNew": true,
+              "name": "update_assignment_working_hours",
+              "operationType": "PATCH",
+              "parameterDefinitions": [
+                {
+                  "dataType": "string",
+                  "description": "Workers resource hash key resolved from the workers collection link.",
+                  "id": 1,
+                  "isToken": true,
+                  "name": "workersUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Period of service ID.",
+                  "id": 2,
+                  "isToken": true,
+                  "name": "PeriodOfServiceId"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Assignments resource hash key resolved from the assignments collection link.",
+                  "id": 3,
+                  "isToken": true,
+                  "name": "assignmentsUniqID"
+                },
+                {
+                  "dataType": "string",
+                  "description": "Effective start date in YYYY-MM-DD format.",
+                  "id": 4,
+                  "isToken": true,
+                  "name": "effectiveDate"
+                },
+                {
+                  "dataType": "string",
+                  "description": "JSON payload for working hours change.",
+                  "id": 5,
+                  "isToken": true,
+                  "name": "workingHoursPayload"
+                }
+              ],
+              "resourcePath": "/hcmRestApi/resources/11.13.18.05/workers/{workersUniqID}/child/workRelationships/{PeriodOfServiceId}/child/assignments/{assignmentsUniqID}",
+              "resourceType": "ADF_BC_FIXED_QUERY",
+              "sampleQueries": [],
+              "type": "BUS_OBJECT",
+              "useNativeAuthentication": true
+            }
+          ]
+        },
+        "ObjectCode": "HS2_HCM_WORKING_HOURS_CHANGE_ASSIGNMENTS",
+        "Family": "HCM",
+        "Product": "GLOBAL_HUMAN_RESOURCES",
+        "ObjectSource": "ADF_BC",
+        "Category": null,
+        "RestResourcePath": "/hcmRestApi/resources/11.13.18.05/workers",
+        "RestResourceIdentifier": "-1",
+        "RestSupportedOperations": "{}",
+        "ParentSupptObjectId": null,
+        "MandatoryFlag": false,
+        "SeededFlag": false,
+        "ObjectDisplayName": "HS2 HCM Working Hours Change Assignments",
+        "Name": "HS2 HCM Working Hours Change Assignments",
+        "Description": "Patch active primary assignment working hours using href-derived or generated opaque REST keys.",
+        "CreatedBy": "Ragul.Halan@hs2.org.uk",
+        "CreationDate": "2026-06-05T05:31:08.697+00:00"
+      }
+    ],
+    "agentNodes": [],
+    "workflowNodes": [],
+    "documentProcessorNodes": [],
+    "ragDocumentToolNodes": [],
+    "toolNodes": [],
+    "externalRestNodes": []
+  },
+  "WorkflowCode": "HS2_WORKING_HOURS_CHANGE_AGENT_HRSS",
+  "Name": "HS2 Working Hours Change Agent HRSS",
+  "Description": "HRSS workflow agent for Oracle HCM working hours changes. Uses existing worker lookup and assignment PATCH artifacts. Payload sends only action, reason, hours, frequency, work-at-home flag, and full/part-time.",
+  "Family": "HCM",
+  "Product": "GLOBAL_HUMAN_RESOURCES",
+  "HiddenFlag": false,
+  "AiAppsCompatibleFlag": false,
+  "UseCaseId": "NA",
+  "SourceWorkflowId": null,
+  "AccessModifier": "public",
+  "StartQuestionOne": null,
+  "StartQuestionTwo": null,
+  "StartQuestionThree": null,
+  "FollowUpPromptEnabledFlag": false,
+  "FollowUpPrompt": "",
+  "Architecture": "data_pipeline",
+  "MaximumInteractions": null,
+  "StartAgentId": null,
+  "agents": [],
+  "agentMappings": [],
+  "partnerMetadata": {
+    "Description": "",
+    "Name": "NTT"
+  }
+}
